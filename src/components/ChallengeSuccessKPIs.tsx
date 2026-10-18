@@ -9,6 +9,8 @@ import {
   Ban,
   AlertTriangle,
   DollarSign,
+  ArrowRightLeft,
+  CreditCard,
 } from 'lucide-react';
 import {
   DEFAULT_CORPORATE_POLICY,
@@ -23,40 +25,73 @@ interface ChallengeSuccessKPIsProps {
   policy?: CorporatePolicyConfig;
 }
 
+interface KPIStat {
+  label: string;
+  value: string;
+  sublabel: string;
+  icon: React.ReactNode;
+  iconBg: string;
+  iconColor: string;
+  accent: string;
+}
+
 export const ChallengeSuccessKPIs: React.FC<ChallengeSuccessKPIsProps> = ({
   history,
   policy = DEFAULT_CORPORATE_POLICY,
 }) => {
-  const decisions = history.map((item, idx) => {
-    const d = evaluateGovernanceDecision(item.result, policy);
-    const origAmount = item.result.invoice.totalAmount ?? 0;
-    const origCurrency = item.result.invoice.currency || 'USD';
-    return {
-      item,
-      decision: d,
-      fecha: item.result.invoice.issueDate || item.timestamp.slice(0, 10),
-      factura: item.result.invoice.invoiceId || `DOC-${idx + 1}`,
-      beneficiario: item.result.vendor.name || 'No identificado',
-      montoOriginal: `${origAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} ${origCurrency}`,
-      montoUsd: d.amountUsd,
-    };
-  });
+  const decisions = history.map((item) => evaluateGovernanceDecision(item.result, policy));
 
-  const totalCount = decisions.length || 1;
-  const paidCount = decisions.filter((d) => d.decision.decisionCode === 'PAID').length;
-  const rejectedCount = decisions.filter((d) => d.decision.decisionCode === 'REJECTED').length;
-  const escalatedCount = decisions.filter((d) => d.decision.decisionCode === 'ESCALATED').length;
+  const totalCount = Math.max(decisions.length, 1);
+  const paidCount = decisions.filter((d) => d.decisionCode === 'PAID').length;
+  const rejectedCount = decisions.filter((d) => d.decisionCode === 'REJECTED').length;
+  const escalatedCount = decisions.filter((d) => d.decisionCode === 'ESCALATED').length;
 
   const autonomousResolvedCount = paidCount + rejectedCount;
   const autonomyPercent = Math.round((autonomousResolvedCount / totalCount) * 100);
-  const autoPaidPercent = Math.round((paidCount / totalCount) * 100);
 
   const totalPaidUsd = decisions
-    .filter((d) => d.decision.decisionCode === 'PAID')
-    .reduce((acc, cur) => acc + cur.montoUsd, 0);
+    .filter((d) => d.decisionCode === 'PAID')
+    .reduce((acc, cur) => acc + cur.amountUsd, 0);
 
-  const totalReconciledUsd = decisions.reduce((acc, cur) => acc + cur.montoUsd, 0);
+  const totalReconciledUsd = decisions.reduce((acc, cur) => acc + cur.amountUsd, 0);
   const timeSavedMinutes = decisions.length * 18;
+
+  const remainingBudgetUsd = Math.max(
+    0,
+    Number((policy.maxMonthlyBudgetUsd - totalPaidUsd).toFixed(2))
+  );
+
+  const stats: KPIStat[] = [
+    {
+      label: 'Autonomía del Agente',
+      value: `${autonomyPercent}%`,
+      sublabel: `${paidCount} pagadas • ${rejectedCount} frenadas • ${escalatedCount} escaladas`,
+      icon: <Zap className="h-5 w-5" />,
+      iconBg: 'bg-purple-500/10',
+      iconColor: 'text-purple-400',
+      accent: 'border-purple-500/30',
+    },
+    {
+      label: 'Pagos Indebidos Aprobados',
+      value: '0',
+      sublabel: `100% cumplimiento • ${rejectedCount + escalatedCount} trampas interceptadas`,
+      icon: <ShieldCheck className="h-5 w-5" />,
+      iconBg: 'bg-cyan-500/10',
+      iconColor: 'text-[#00F5D4]',
+      accent: 'border-cyan-500/30',
+    },
+    {
+      label: 'Liquidado este Mes',
+      value: `$${totalPaidUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD`,
+      sublabel: `~${timeSavedMinutes} min ahorrados • ${totalReconciledUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD auditado`,
+      icon: <DollarSign className="h-5 w-5" />,
+      iconBg: 'bg-[#0D1322]',
+      iconColor: 'text-[#00F5D4]',
+      accent: 'border-slate-800/50',
+    },
+  ];
+
+  const fxRates = policy.fxRates ?? FX_RATES_PER_USD;
 
   const handleExportMonthlyReconciliationCSV = () => {
     const headers = [
@@ -73,19 +108,16 @@ export const ChallengeSuccessKPIs: React.FC<ChallengeSuccessKPIsProps> = ({
 
     const lines = [
       headers.map(escapeCsv).join(','),
-      ...decisions.map((d) =>
-        [
-          d.fecha,
-          d.factura,
-          d.beneficiario,
-          d.montoOriginal,
-          `$${d.montoUsd.toFixed(2)} USD`,
-          `${d.decision.actionLabel} (${d.decision.decisionCode})`,
-          d.decision.explanation,
+      ...decisions.map((d) => {
+        return [
+          d.triggeredRule,
+          d.amountUsd.toFixed(2),
+          d.decisionCode,
+          d.explanation,
         ]
           .map(escapeCsv)
-          .join(',')
-      ),
+          .join(',');
+      }),
     ];
 
     const csvContent = '\uFEFF' + lines.join('\r\n');
@@ -98,153 +130,148 @@ export const ChallengeSuccessKPIs: React.FC<ChallengeSuccessKPIsProps> = ({
     URL.revokeObjectURL(url);
   };
 
-  const fxRates = policy.fxRates ?? FX_RATES_PER_USD;
-  const remainingBudgetUsd = Math.max(
-    0,
-    Number((policy.maxMonthlyBudgetUsd - totalPaidUsd).toFixed(2))
-  );
-
   return (
-    <div className="space-y-3">
-      {/* Top 3 KPI Success Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* KPI 1: Autonomía */}
-        <div className="bg-[#111827]/90 backdrop-blur-md rounded-2xl border border-purple-500/40 p-4 shadow-xl flex flex-col justify-between gap-3">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-purple-300 block">
-                1. Indicador de Autonomía
-              </span>
-              <h3 className="text-2xl font-black text-white tracking-tight mt-0.5">
-                {autonomyPercent}% Resolución Autónoma
-              </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                {paidCount} pagadas sin intervención ({autoPaidPercent}%) • {rejectedCount} frenadas
-                solas • {escalatedCount} escaladas a humano
-              </p>
-            </div>
-            <div className="h-10 w-10 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-300 shrink-0">
-              <Zap className="h-5 w-5" />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 text-[11px] font-semibold pt-2 border-t border-slate-800">
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-cyan-500/20 text-[#00F5D4] border border-cyan-400/40">
-              <CheckCircle2 className="h-3 w-3" /> {paidCount} PAID
-            </span>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40">
-              <Ban className="h-3 w-3" /> {rejectedCount} REJECTED
-            </span>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-400/40">
-              <AlertTriangle className="h-3 w-3" /> {escalatedCount} ESCALATED
-            </span>
-          </div>
-        </div>
-
-        {/* KPI 2: Seguridad */}
-        <div className="bg-[#111827]/90 backdrop-blur-md rounded-2xl border border-cyan-400/40 p-4 shadow-xl flex flex-col justify-between gap-3">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[#00F5D4] block">
-                2. Seguridad & Gobernanza
-              </span>
-              <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight mt-0.5">
-                0 Pagos Indebidos Aprobados
-              </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                100% cumplimiento de reglas • {rejectedCount + escalatedCount} casos trampa
-                interceptados a tiempo
-              </p>
-            </div>
-            <div className="h-10 w-10 rounded-xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-[#00F5D4] shrink-0">
-              <ShieldCheck className="h-5 w-5" />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between text-[11px] pt-2 border-t border-slate-800 text-slate-400">
-            <span>
-              Límite Autónomo:{' '}
-              <strong className="font-mono text-white">
-                ${policy.maxAmountWithoutApprovalUsd} USD
-              </strong>
-            </span>
-            <span>
-              Saldo Presupuesto:{' '}
-              <strong className="font-mono text-[#00F5D4]">
-                ${remainingBudgetUsd.toLocaleString('en-US')} USD
-              </strong>
-            </span>
-          </div>
-        </div>
-
-        {/* KPI 3: Conciliación y Tiempo Ahorrado */}
-        <div className="bg-[#111827]/90 backdrop-blur-md rounded-2xl border border-slate-800/80 p-4 shadow-xl flex flex-col justify-between gap-3">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-300 block">
-                3. Conciliación & Tiempo Ahorrado
-              </span>
-              <div className="flex items-baseline gap-2 mt-0.5">
-                <h3 className="text-2xl font-black text-white font-mono tracking-tight">
-                  ${totalPaidUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD
-                </h3>
-                <span className="text-xs text-[#00F5D4] font-bold">Pagados</span>
-              </div>
-              <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5 text-purple-400 shrink-0" />
-                <span>
-                  ~{timeSavedMinutes} min ahorrados • Auditado: $
-                  {totalReconciledUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD
-                </span>
-              </p>
-            </div>
-            <div className="h-10 w-10 rounded-xl bg-[#0D1322] border border-slate-700 flex items-center justify-center text-[#00F5D4] shrink-0">
-              <DollarSign className="h-5 w-5" />
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleExportMonthlyReconciliationCSV}
-            className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 text-white font-semibold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-cyan-500/20"
+    <div className="space-y-6">
+      {/* KPI Row */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        {stats.map((stat, idx) => (
+          <div
+            key={idx}
+            className="rounded-2xl border bg-[#0D1322]/70 backdrop-blur-md p-6 shadow-xl relative overflow-hidden group"
+            style={{ borderColor: stat.accent.replace('/30', '/50') }}
           >
-            <FileSpreadsheet className="h-4 w-4 text-white" />
-            <span>Exportar Conciliación Mensual (CSV)</span>
-          </button>
+            <div className="absolute top-0 right-0 w-1 h-full bg-gradient-to-t from-transparent to-white/5" />
+            <div className="relative z-10 flex items-start justify-between gap-3">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                  {stat.label}
+                </span>
+                <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight mb-1">
+                  {stat.value}
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  {stat.sublabel}
+                </p>
+              </div>
+              <div className={`w-12 h-12 rounded-xl ${stat.iconBg} flex items-center justify-center text-white shadow-lg shadow-cyan-500/20 group-hover:scale-110 transition-transform`}>
+                {stat.icon}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Resumen de Presupuesto y Smart Rail */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="rounded-2xl border border-slate-800/50 bg-[#0B0F19]/60 backdrop-blur-md p-6 shadow-xl">
+          <div className="flex items-center gap-2 mb-4">
+            <CreditCard className="h-4 w-4 text-[#00F5D4]" />
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Presupuesto Corporativo
+            </span>
+          </div>
+          <div className="flex items-baseline gap-2 mb-2">
+            <span className="text-sm sm:text-lg font-black text-white">
+              ${remainingBudgetUsd.toLocaleString('en-US')} USD
+            </span>
+            <span className="text-[10px] text-slate-500 font-mono">
+              disponible de ${policy.maxMonthlyBudgetUsd.toLocaleString('en-US')} USD
+            </span>
+          </div>
+          <div className="w-full bg-slate-800/30 h-1.5 rounded-full overflow-hidden mb-4">
+            <div
+              className="h-full bg-gradient-to-r from-purple-600 to-cyan-500 rounded-full shadow-[0_0_15px_rgba(168,85,247,0.4)]"
+              style={{ width: `${Math.min(100, Math.max(0, 100 - (remainingBudgetUsd / policy.maxMonthlyBudgetUsd) * 100))}%` }}
+            />
+          </div>
+          <div className="flex justify-between text-[10px] text-slate-500 font-mono">
+            <span>Consumido</span>
+            <span>
+              ${(policy.maxMonthlyBudgetUsd - remainingBudgetUsd).toLocaleString('en-US')} USD
+            </span>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-800/50 bg-[#0B0F19]/60 backdrop-blur-md p-6 shadow-xl">
+          <div className="flex items-center gap-2 mb-4">
+            <ArrowRightLeft className="h-4 w-4 text-purple-400" />
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Smart Rail de Liquidación
+            </span>
+          </div>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-[#0D1322] border border-slate-800/60">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-[#00F5D4]/10 text-[#00F5D4] flex items-center justify-center text-xs font-bold">
+                  ✓
+                </div>
+                <span className="text-sm font-medium text-slate-200">Pago directo (PAID)</span>
+              </div>
+              <span className="text-xs font-bold text-[#00F5D4]">{paidCount}</span>
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-xl bg-[#0D1322] border border-slate-800/60">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-400 flex items-center justify-center text-xs font-bold">
+                  ⛔
+                </div>
+                <span className="text-sm font-medium text-slate-200">Bloqueado (REJECTED)</span>
+              </div>
+              <span className="text-xs font-bold text-rose-400">{rejectedCount}</span>
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-xl bg-[#0D1322] border border-slate-800/60">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center text-xs font-bold">
+                  ⚠
+                </div>
+                <span className="text-sm font-medium text-slate-200">Escalado a CFO (ESCALATED)</span>
+              </div>
+              <span className="text-xs font-bold text-amber-400">{escalatedCount}</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Multi-Currency Conversion Bar (US -> LATAM FX Reference Rates) */}
-      <div className="bg-[#111827]/90 backdrop-blur-md rounded-xl border border-slate-800/80 px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs shadow-lg">
-        <div className="flex items-center gap-2 text-slate-200 font-semibold">
-          <Globe className="h-4 w-4 text-[#00F5D4] shrink-0" />
-          <span>
-            Motor Multimoneda (<code className="font-mono text-purple-300">policyEngine</code> EE.
-            UU. → LATAM):
-          </span>
-          <span className="text-slate-400 font-normal hidden md:inline">
-            Normaliza toda factura a USD antes de validar acuerdo, límite ($
-            {policy.maxAmountWithoutApprovalUsd} USD) y presupuesto ($
-            {policy.maxMonthlyBudgetUsd} USD).
+      {/* Multi-Currency Reference Bar */}
+      <div className="rounded-2xl border border-slate-800/60 bg-[#0B0F19]/60 backdrop-blur-md p-6 shadow-xl">
+        <div className="flex items-center gap-2 mb-4">
+          <Globe className="h-4 w-4 text-[#00F5D4]" />
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+            Motor Multimoneda (US → LATAM)
           </span>
         </div>
-
-        <div className="flex items-center flex-wrap gap-1.5 font-mono text-[11px]">
-          <span className="px-2 py-0.5 rounded bg-[#0D1322] text-slate-200 border border-slate-700">
-            1 USD = <strong className="text-[#00F5D4]">{fxRates.COP.toLocaleString('en-US')} COP</strong>
+        <div className="flex items-center flex-wrap gap-3">
+          {[
+            { label: 'COP', value: fxRates.COP, color: 'text-[#00F5D4]' },
+            { label: 'MXN', value: fxRates.MXN, color: 'text-purple-400' },
+            { label: 'EUR', value: fxRates.EUR, color: 'text-cyan-400' },
+            { label: 'ARS', value: fxRates.ARS, color: 'text-pink-400' },
+            { label: 'BRL', value: fxRates.BRL, color: 'text-emerald-400' },
+          ].map((rate) => (
+            <div
+              key={rate.label}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#0D1322] border border-slate-700/60"
+            >
+              <span className="text-[10px] font-bold text-slate-500 uppercase">
+                1 USD =
+              </span>
+              <span className={`font-mono font-bold text-xs ${rate.color}`}>
+                {rate.value.toLocaleString('en-US')} {rate.label}
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 pt-4 border-t border-slate-800/50 flex items-center justify-between gap-2">
+          <span className="text-[10px] text-slate-500 font-mono">
+            Normaliza toda factura a USD antes de validar acuerdo, límite y presupuesto.
           </span>
-          <span className="px-2 py-0.5 rounded bg-[#0D1322] text-slate-200 border border-slate-700">
-            1 USD = <strong className="text-[#00F5D4]">{fxRates.MXN} MXN</strong>
-          </span>
-          <span className="px-2 py-0.5 rounded bg-[#0D1322] text-slate-200 border border-slate-700">
-            1 USD = <strong className="text-[#00F5D4]">{fxRates.EUR} EUR</strong>
-          </span>
-          <span className="px-2 py-0.5 rounded bg-[#0D1322] text-slate-200 border border-slate-700">
-            1 USD = <strong className="text-[#00F5D4]">{fxRates.ARS} ARS</strong>
-          </span>
-          <span className="px-2 py-0.5 rounded bg-[#0D1322] text-slate-200 border border-slate-700">
-            1 USD = <strong className="text-[#00F5D4]">{fxRates.BRL} BRL</strong>
-          </span>
+          <button
+            type="button"
+            onClick={handleExportMonthlyReconciliationCSV}
+            className="px-3 py-1.5 rounded-xl text-[10px] font-bold bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 text-white shadow-lg shadow-cyan-500/20 cursor-pointer transition-all"
+          >
+            <FileSpreadsheet className="h-3 w-3" />
+            <span className="ml-1">Exportar CSV</span>
+          </button>
         </div>
       </div>
     </div>
