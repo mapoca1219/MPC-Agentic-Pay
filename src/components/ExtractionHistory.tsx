@@ -559,7 +559,7 @@ export const ExtractionHistory: React.FC<ExtractionHistoryProps> = ({
       </div>
 
       {showTablePreview && history.length > 0 && (
-        <div className="rounded-xl border border-slate-800 overflow-hidden bg-[#0D1322] animate-in fade-in">
+          <div className="rounded-xl border border-slate-800 overflow-hidden bg-[#0D1322]">
           <div className="bg-[#131B2E] text-white px-3.5 py-2 flex items-center justify-between text-[11px] border-b border-slate-800">
             <span className="font-bold uppercase tracking-wider text-[#00F5D4]">
               Conciliación Mensual Lista para Contabilidad
@@ -583,8 +583,8 @@ export const ExtractionHistory: React.FC<ExtractionHistoryProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/80 bg-[#0D1322]">
-                {accountingRows.map((row) => (
-                  <tr key={`${row.ID}-${row.HashSHA256}`} className="hover:bg-[#131B2E]">
+                {accountingRows.map((row, idx) => (
+                  <tr key={`row-${idx}`} className="hover:bg-[#131B2E]">
                     <td className="py-2 px-2.5 font-mono text-slate-400 whitespace-nowrap">
                       {row.Fecha}
                     </td>

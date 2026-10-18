@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Header, type AppViewTab } from './components/Header';
 import { RulesBanner } from './components/RulesBanner';
 import { DocumentInput } from './components/DocumentInput';
@@ -206,27 +206,42 @@ export default function App() {
     }
   };
 
-  // Compute live KPI metrics for the persistent SaaS Header
-  const evaluatedHistory = history.map((item) => evaluateGovernanceDecision(item.result, policy));
-  const totalDocs = evaluatedHistory.length || 1;
-  const paidDocs = evaluatedHistory.filter((d) => d.decisionCode === 'PAID');
-  const rejectedDocs = evaluatedHistory.filter((d) => d.decisionCode === 'REJECTED');
-  const escalatedDocs = evaluatedHistory.filter((d) => d.decisionCode === 'ESCALATED');
-  const autonomyPercent = Math.round(((paidDocs.length + rejectedDocs.length) / totalDocs) * 100);
-  const totalPaidUsd = paidDocs.reduce((acc, cur) => acc + cur.amountUsd, 0);
-  const remainingBudgetUsd = Math.max(
-    0,
-    Number((policy.maxMonthlyBudgetUsd - totalPaidUsd).toFixed(2))
-  );
+  // Compute live KPI metrics for the persistent SaaS Header (memoized to avoid re-render flicker)
+  const memo = useMemo(() => {
+    const evaluatedHistory = history.map((item) => evaluateGovernanceDecision(item.result, policy));
+    const totalDocs = evaluatedHistory.length || 1;
+    const paidDocs = evaluatedHistory.filter((d) => d.decisionCode === 'PAID');
+    const rejectedDocs = evaluatedHistory.filter((d) => d.decisionCode === 'REJECTED');
+    const escalatedDocs = evaluatedHistory.filter((d) => d.decisionCode === 'ESCALATED');
+    const autonomyPercent = Math.round(((paidDocs.length + rejectedDocs.length) / totalDocs) * 100);
+    const totalPaidUsd = paidDocs.reduce((acc, cur) => acc + cur.amountUsd, 0);
+    const remainingBudgetUsd = Math.max(
+      0,
+      Number((policy.maxMonthlyBudgetUsd - totalPaidUsd).toFixed(2))
+    );
+    const activeId =
+      history.find((h) => h.result === activeResult)?.id ||
+      history.find((h) => h.sampleId === selectedSample?.id)?.id;
+    return {
+      evaluatedHistory,
+      autonomyPercent,
+      paidDocs,
+      rejectedDocs,
+      escalatedDocs,
+      totalPaidUsd,
+      remainingBudgetUsd,
+      activeId,
+    };
+  }, [history, policy, activeResult, selectedSample]);
 
   return (
     <div className="min-h-screen bg-[#0B0F19] text-slate-100 font-sans antialiased flex flex-col selection:bg-cyan-500 selection:text-slate-950">
       <Header
         activeView={activeView}
         onSelectView={setActiveView}
-        autonomyPercent={autonomyPercent}
-        escalatedCount={escalatedDocs.length}
-        remainingBudgetUsd={remainingBudgetUsd}
+        autonomyPercent={memo.autonomyPercent}
+        escalatedCount={memo.escalatedDocs.length}
+        remainingBudgetUsd={memo.remainingBudgetUsd}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-4">
@@ -319,10 +334,7 @@ export default function App() {
             <ExtractionHistory
               history={history}
               policy={policy}
-              activeId={
-                history.find((h) => h.result === activeResult)?.id ||
-                history.find((h) => h.sampleId === selectedSample?.id)?.id
-              }
+              activeId={memo.activeId}
               onSelect={handleSelectHistoryItem}
               onClear={() => setHistory([])}
               onLoadAllSamples={() => setHistory(buildInitialHistory())}
