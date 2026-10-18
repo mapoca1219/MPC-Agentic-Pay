@@ -478,7 +478,10 @@ export const VisualDocumentPreview: React.FC<VisualDocumentPreviewProps> = ({
   const isInjection = extractionResult.securityAudit.promptInjectionDetected;
   const shortHash = extractionResult.securityAudit.shortHash || 'e3b0c442...98fc';
   const fullHash = extractionResult.securityAudit.documentHashSha256 || '';
-  const visualFormat = sample?.visualFormat || 'pdf';
+  const visualFormat = uploadedPreviewUrl ? 'image' : sample?.visualFormat || 'pdf';
+  const formatBadgeLabel = uploadedPreviewUrl
+    ? `COMPROBANTE SUBIDO (${extractionResult.documentMetadata.documentType})`
+    : sample?.formatLabel || extractionResult.documentMetadata.documentType;
   const decision = evaluateGovernanceDecision(extractionResult);
 
   const renderPreviewBody = () => {
@@ -550,7 +553,7 @@ export const VisualDocumentPreview: React.FC<VisualDocumentPreviewProps> = ({
                 Vista Previa del Documento Original
               </span>
               <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-purple-500/20 text-purple-200 border border-purple-400/40">
-                {sample?.formatLabel || extractionResult.documentMetadata.documentType}
+                {formatBadgeLabel}
               </span>
             </div>
             <div

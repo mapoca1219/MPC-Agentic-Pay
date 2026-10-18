@@ -1055,32 +1055,82 @@ export function applyHumanCfoDecision(
   return clone;
 }
 
+const COLOMBIAN_CURRENCY_KEYWORDS = [
+  'colombia',
+  'bancolombia',
+  'nequi',
+  'daviplata',
+  'davivienda',
+  'nu.c.f',
+  'nu c.f',
+  'bre-b',
+  '4x1.000',
+  '4x1000',
+  'comprobante de transferencia',
+];
+
 function detectCurrencyFromRawText(text: string): string {
   const currencyMatch = /\b(USD|COP|MXN|EUR|ARS|BRL|CLP|PEN)\b/i.exec(text);
   if (currencyMatch) {
     return currencyMatch[1].toUpperCase();
   }
   const lower = text.toLowerCase();
-  if (lower.includes('colombia') || lower.includes('bancolombia')) {
+  if (COLOMBIAN_CURRENCY_KEYWORDS.some((kw) => lower.includes(kw))) {
     return 'COP';
   }
   return 'USD';
 }
 
+function normalizeNumberString(raw: string): string {
+  const trimmed = raw.trim();
+  const lastComma = trimmed.lastIndexOf(',');
+  const lastDot = trimmed.lastIndexOf('.');
+
+  if (lastComma !== -1 && lastDot !== -1) {
+    if (lastComma > lastDot) {
+      return trimmed.replaceAll('.', '').replace(',', '.');
+    }
+    return trimmed.replaceAll(',', '');
+  }
+
+  if (lastComma !== -1) {
+    if (/^\d+,\d{1,2}$/.test(trimmed)) {
+      return trimmed.replace(',', '.');
+    }
+    return trimmed.replaceAll(',', '');
+  }
+
+  if (lastDot !== -1 && (/^\d{1,3}(?:\.\d{3})+$/.test(trimmed) || trimmed.split('.').length > 2)) {
+    return trimmed.replaceAll('.', '');
+  }
+
+  return trimmed;
+}
+
 function parseCleanNumber(raw?: string | null): number | null {
   if (!raw) return null;
-  const cleaned = raw.replaceAll(',', '');
+  const cleaned = normalizeNumberString(raw);
   const n = Number.parseFloat(cleaned);
   return Number.isNaN(n) ? null : n;
 }
 
+function isFilenameLine(line: string): boolean {
+  return /^whatsapp\s+image/i.test(line) || /\.(?:jpe?g|png|pdf|webp)$/i.test(line);
+}
+
 function extractFirstMoneyValue(line: string): number | null {
-  const afterColon = line.includes(':') ? line.slice(line.lastIndexOf(':') + 1) : line;
-  const dollarMatch = /\$\s*(\d[\d,]*(?:\.\d{1,2})?)/.exec(afterColon);
+  if (!line || isFilenameLine(line.trim())) {
+    return null;
+  }
+  const dollarMatch = /\$\s*(\d[\d.,]*\d|\d)/.exec(line);
   if (dollarMatch) {
     return parseCleanNumber(dollarMatch[1]);
   }
-  const numMatch = /(\d[\d,]*(?:\.\d{1,2})?)/.exec(afterColon);
+  const afterColon = line.includes(':') ? line.slice(line.lastIndexOf(':') + 1) : line;
+  const sanitized = afterColon
+    .replaceAll(/\b\d{4}-\d{2}-\d{2}\b/g, '')
+    .replaceAll(/\b\d{1,2}[.:]\d{2}[.:]\d{2}\b/g, '');
+  const numMatch = /(\d[\d.,]*)/.exec(sanitized);
   return parseCleanNumber(numMatch?.[1]);
 }
 
@@ -1090,14 +1140,27 @@ function findMoneyByLineKeywords(
   excludeSubstrings: string[] = []
 ): number | null {
   for (const kw of keywords) {
-    for (const line of lines) {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
       const lower = line.toLowerCase();
       const isExcluded = excludeSubstrings.some((ex) => lower.includes(ex));
       if (!isExcluded && lower.includes(kw)) {
-        const value = extractFirstMoneyValue(line);
+        const value = extractFirstMoneyValue(line) ?? extractFirstMoneyValue(lines[i + 1] || '');
         if (value !== null) {
           return value;
         }
+      }
+    }
+  }
+  return null;
+}
+
+function findFirstDollarAmountInLines(lines: string[]): number | null {
+  for (const line of lines) {
+    if (line.includes('$')) {
+      const val = extractFirstMoneyValue(line);
+      if (val !== null && val > 0) {
+        return val;
       }
     }
   }
@@ -1111,6 +1174,23 @@ function findDateByLineKeywords(lines: string[], keywords: string[]): string | n
       const dateMatch = /(\d{4}-\d{2}-\d{2})/.exec(line);
       if (dateMatch) {
         return dateMatch[1];
+      }
+    }
+  }
+  return null;
+}
+
+function extractRecipientFromTransferLines(lines: string[]): string | null {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const nombreMatch = /^nombre\s*:?\s+(.+)$/i.exec(line);
+    if (nombreMatch) {
+      return nombreMatch[1].trim();
+    }
+    if (/^para$/i.test(line) && lines[i + 1]) {
+      const nextClean = lines[i + 1].replace(/^nombre\s*:?\s*/i, '').trim();
+      if (nextClean) {
+        return nextClean;
       }
     }
   }
@@ -1133,8 +1213,15 @@ function extractVendorNameFromRawText(text: string, lines: string[], documentHin
       return entry.name;
     }
   }
-  if (lines.length > 0) {
-    return lines[0].replace(/^from:\s*/i, '').slice(0, 60);
+
+  const recipient = extractRecipientFromTransferLines(lines);
+  if (recipient) {
+    return recipient;
+  }
+
+  const meaningfulLines = lines.filter((l) => !isFilenameLine(l));
+  if (meaningfulLines.length > 0) {
+    return meaningfulLines[0].replace(/^from:\s*/i, '').slice(0, 60);
   }
   return documentHint || 'Proveedor Corporativo';
 }
@@ -1154,13 +1241,44 @@ function extractEmailFromRawText(text: string): string | null {
 function detectDocumentTypeFromRawText(
   text: string
 ): ExtractionResult['documentMetadata']['documentType'] {
+  if (/comprobante de transferencia|comprobante de pago|recibo/i.test(text)) {
+    return 'RECIBO';
+  }
   if (text.includes('From:')) {
     return 'CORREO_ELECTRONICO';
   }
-  if (text.includes('WhatsApp') || text.startsWith('[')) {
+  if ((text.includes('WhatsApp') && !isFilenameLine(text.trim())) || text.startsWith('[')) {
     return 'MENSAJE_CHAT';
   }
   return 'FACTURA_ELECTRONICA';
+}
+
+function parseBankLine(line: string, currentBank: string): string {
+  const lower = line.toLowerCase();
+  if (lower.includes('banco:') || lower.includes('bank:')) {
+    const parts = line.split(':');
+    return parts[1] ? parts[1].split('•')[0].trim() : currentBank;
+  }
+  const entidadMatch = /^entidad\s*:?\s+(.+)$/i.exec(line);
+  if (entidadMatch && currentBank === 'Banco Corporativo') {
+    return entidadMatch[1].trim();
+  }
+  return currentBank;
+}
+
+function parseAccountLine(line: string, currentAccount: string | null): string | null {
+  const lower = line.toLowerCase();
+  const llaveMatch = /^llave\s*:?\s+(@?[a-z0-9._-]+)$/i.exec(line);
+  if (llaveMatch) {
+    return `Llave Bre-B ${llaveMatch[1].trim()}`;
+  }
+  if (lower.includes('account') || lower.includes('cuenta')) {
+    const accMatch = /(\*{2,}\d{3,}|\d[\d-]{3,}\d)/.exec(line);
+    if (accMatch) {
+      return accMatch[1].trim();
+    }
+  }
+  return currentAccount;
 }
 
 function extractBankAndAccount(lines: string[], matchedVendor: WhitelistedVendorRule | null) {
@@ -1168,26 +1286,23 @@ function extractBankAndAccount(lines: string[], matchedVendor: WhitelistedVendor
   let accountNumber: string | null = matchedVendor?.registeredAccount ?? null;
 
   for (const line of lines) {
-    const lower = line.toLowerCase();
-    if (lower.includes('banco:') || lower.includes('bank:')) {
-      const parts = line.split(':');
-      if (parts[1]) {
-        bankName = parts[1].split('•')[0].trim();
-      }
-    }
-    if (lower.includes('account') || lower.includes('cuenta')) {
-      const accMatch = /(\d[\d-]{3,}\d)/.exec(line);
-      if (accMatch) {
-        accountNumber = accMatch[1].trim();
-      }
-    }
+    bankName = parseBankLine(line, bankName);
+    accountNumber = parseAccountLine(line, accountNumber);
   }
 
   return { bankName, accountNumber };
 }
 
 function extractInvoiceIdFromLines(lines: string[]): string | null {
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const compMatch = /n[uú]mero\s+de\s+comprobante\s*:?\s*([a-z0-9-]{4,})?/i.exec(line);
+    if (compMatch) {
+      const id = compMatch[1] || lines[i + 1];
+      if (id && /^[a-z0-9-]+$/i.test(id.trim())) {
+        return id.trim();
+      }
+    }
     const hashMatch = /#\s*:?\s*([a-z0-9-]{4,})/i.exec(line);
     if (hashMatch) {
       return hashMatch[1].trim();
@@ -1218,14 +1333,26 @@ export function parseDocumentDeterministically(
   const totalAmount =
     findMoneyByLineKeywords(
       lines,
-      ['total a pagar', 'valor total', 'total due', 'total amount', 'monto total', 'total:'],
+      [
+        'total a pagar',
+        'valor total',
+        'total due',
+        'total amount',
+        'monto total',
+        'total:',
+        'cantidad enviada',
+        'monto enviado',
+        'valor de la transferencia',
+      ],
       ['subtotal', 'qty:']
-    ) ?? extractFirstMoneyValue(text);
+    ) ??
+    findFirstDollarAmountInLines(lines) ??
+    extractFirstMoneyValue(text);
   const subtotalAmount = findMoneyByLineKeywords(lines, ['subtotal']) ?? totalAmount;
   const taxAmount =
     findMoneyByLineKeywords(
       lines,
-      ['iva:', 'iva (', 'tax:', 'tax (', 'impuesto:', 'impuestos:'],
+      ['iva:', 'iva (', 'tax:', 'tax (', 'impuesto:', 'impuestos:', '4x1.000', '4x1000'],
       ['tax id']
     ) ?? 0;
 
@@ -1238,7 +1365,7 @@ export function parseDocumentDeterministically(
     findDateByLineKeywords(lines, ['due date', 'vencimiento', 'máxima de pago', 'para cuándo', 'para cuando']) ??
     '2026-10-25';
 
-  const taxIdMatch = /(?:nit|ein|rfc|rut|cuit|tax\s*id)[^:\n]{0,20}:\s*([0-9a-z.-]+)/i.exec(text);
+  const taxIdMatch = /(?:nit|ein|rfc|rut|cuit|tax\s*id)[^:\n0-9]{0,20}:?\s*(\d[0-9a-z.-]+)/i.exec(text);
   const vendorName = extractVendorNameFromRawText(text, lines, documentHint);
   const matchedVendor = findWhitelistedVendor(vendorName);
   const { bankName, accountNumber } = extractBankAndAccount(lines, matchedVendor);
@@ -1268,13 +1395,14 @@ export function parseDocumentDeterministically(
   }
 
   const { fullHash, shortHash } = computeDocumentSha256(text);
+  const isTransferReceipt = /comprobante de transferencia/i.test(text);
 
   const result: ExtractionResult = {
     vendor: {
       name: vendorName,
       legalName: vendorName,
       vendorTaxId: taxIdMatch?.[1] ?? null,
-      taxIdType: 'ID Fiscal',
+      taxIdType: currency === 'COP' ? 'NIT / CC' : 'ID Fiscal',
       address: null,
       countryRegion: currency === 'COP' ? 'Colombia (LATAM)' : 'EE. UU. / Internacional',
       email: extractEmailFromRawText(text),
@@ -1282,7 +1410,7 @@ export function parseDocumentDeterministically(
       bankDetails: {
         bankName,
         accountNumber,
-        accountType: 'Corporativa',
+        accountType: isTransferReceipt ? 'Billetera / Transferencia' : 'Corporativa',
         routingNumberOrClabeOrCbu: null,
         beneficiaryName: vendorName,
       },
@@ -1303,11 +1431,13 @@ export function parseDocumentDeterministically(
       retentionAmount: 0,
       discountAmount: 0,
       totalAmount,
-      paymentMethod: 'Transferencia Bancaria',
-      paymentTerms: 'Net 15',
+      paymentMethod: isTransferReceipt ? 'Transferencia Bre-B / Nequi' : 'Transferencia Bancaria',
+      paymentTerms: isTransferReceipt ? 'Contado / Inmediato' : 'Net 15',
       items: [
         {
-          description: documentHint || 'Servicios facturados en documento',
+          description: isTransferReceipt
+            ? `Comprobante de transferencia a ${vendorName} (${bankName})`
+            : documentHint || 'Servicios facturados en documento',
           quantity: 1,
           unitPrice: totalAmount,
           total: totalAmount,
@@ -1318,7 +1448,7 @@ export function parseDocumentDeterministically(
       documentType: detectDocumentTypeFromRawText(text),
       language: 'es',
       extractionTimestamp: new Date().toISOString(),
-      rawTextExcerpt: text.slice(0, 280),
+      rawTextExcerpt: text.slice(0, 500),
       isDuplicateSubmission: isDuplicate,
     },
     mathIntegrityCheck: mathCheck,
@@ -1337,3 +1467,4 @@ export function parseDocumentDeterministically(
   result.governanceDecision = evaluateGovernanceDecision(result);
   return result;
 }
+

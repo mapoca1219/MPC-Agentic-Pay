@@ -206,4 +206,33 @@ test('SAMPLE_INVOICES: all 9 Hackathon 30X scenarios evaluate to exact expected 
   const parsedBankFraud = parseDocumentDeterministically(SAMPLE_INVOICES[8].rawText, SAMPLE_INVOICES[8].title);
   assert.equal(parsedBankFraud.vendor.bankDetails?.accountNumber, '999-000111-88');
   assert.equal(parsedBankFraud.governanceDecision?.decisionCode, 'ESCALATED');
+
+  // Test Colombian transfer receipt (Nu Colombia -> Nequi $150.000,00 COP)
+  const nuReceiptOcrText = `nu
+Comprobante de transferencia
+26 SEPT 2026 - 00:25:42
+Cantidad enviada
+$150.000,00
+Para
+Nombre MARLON ALDAIR PAREDES HURTADO
+Entidad Nequi
+Llave @3148951534
+De
+Nombre Marco Polo Caicedo
+Entidad Nu.C.F.
+NIT 901.658.107-2
+Tipo de envío Bre-B
+Número de comprobante
+NU71055148`;
+  const parsedNuReceipt = parseDocumentDeterministically(
+    nuReceiptOcrText,
+    'WhatsApp Image 2026-09-26 at 00.26.06.jpeg'
+  );
+  assert.equal(parsedNuReceipt.invoice.totalAmount, 150000);
+  assert.equal(parsedNuReceipt.invoice.currency, 'COP');
+  assert.equal(parsedNuReceipt.vendor.name, 'MARLON ALDAIR PAREDES HURTADO');
+  assert.equal(parsedNuReceipt.vendor.bankDetails?.bankName, 'Nequi');
+  assert.equal(parsedNuReceipt.vendor.bankDetails?.accountNumber, 'Llave Bre-B @3148951534');
+  assert.equal(parsedNuReceipt.invoice.invoiceId, 'NU71055148');
+  assert.equal(parsedNuReceipt.governanceDecision?.decisionCode, 'ESCALATED');
 });

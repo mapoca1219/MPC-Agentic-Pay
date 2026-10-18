@@ -187,6 +187,7 @@ export default function App() {
     triggerStepByStepScan();
 
     if (payload.fileData) {
+      setSelectedSample(null);
       setUploadedPreview({
         url: payload.fileData.previewUrl,
         filename: payload.fileData.filename,
@@ -208,19 +209,22 @@ export default function App() {
 
       const extracted: ExtractionResult = resData.data;
       setActiveResult(extracted);
+      if (payload.fileData && extracted.documentMetadata?.rawTextExcerpt) {
+        setCustomText(extracted.documentMetadata.rawTextExcerpt);
+      }
 
       const newItem: HistoryItem = {
         id: `ext-${Date.now()}`,
         timestamp: new Date().toISOString(),
         title: extracted.vendor.name || payload.documentHint || 'Documento Auditado en Vivo',
         result: extracted,
-        sampleId: selectedSample?.id,
+        sampleId: payload.fileData ? undefined : selectedSample?.id,
       };
 
       setHistory((prev) => [newItem, ...prev.slice(0, 14)]);
     } catch {
       const fallbackExtracted = parseDocumentDeterministically(
-        payload.text || payload.fileData?.filename || customText,
+        payload.text || customText,
         payload.documentHint
       );
       setActiveResult(fallbackExtracted);
@@ -230,7 +234,7 @@ export default function App() {
         timestamp: new Date().toISOString(),
         title: fallbackExtracted.vendor.name || payload.documentHint || 'Documento Auditado',
         result: fallbackExtracted,
-        sampleId: selectedSample?.id,
+        sampleId: payload.fileData ? undefined : selectedSample?.id,
       };
 
       setHistory((prev) => [newItem, ...prev.slice(0, 14)]);
