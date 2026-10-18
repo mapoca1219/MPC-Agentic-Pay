@@ -19,6 +19,7 @@ import {
   type ExtractionResult,
 } from '../src/utils/financialRules.js';
 import {
+  getGeminiFallbackModel,
   getGeminiApiErrorMessage,
   getGeminiApiErrorStatus,
 } from '../src/utils/geminiApiError.js';
@@ -363,26 +364,44 @@ export default async function extractHandler(req: Request, res: Response): Promi
 
   try {
     const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [
-        {
-          inlineData: {
-            mimeType,
-            data: base64,
-          },
+    const preferredModel = process.env.GEMINI_MODEL?.trim() || 'gemini-2.5-flash';
+    const fallbackModel = getGeminiFallbackModel(preferredModel);
+    const contents = [
+      {
+        inlineData: {
+          mimeType,
+          data: base64,
         },
-        {
-          text: 'Extrae los datos financieros visibles del archivo cargado.',
-        },
-      ],
-      config: {
-        systemInstruction,
-        responseMimeType: 'application/json',
-        responseSchema: extractionSchema,
-        temperature: 0,
       },
-    });
+      {
+        text: 'Extrae los datos financieros visibles del archivo cargado.',
+      },
+    ];
+    const config = {
+      systemInstruction,
+      responseMimeType: 'application/json',
+      responseSchema: extractionSchema,
+      temperature: 0,
+    };
+    let response;
+    try {
+      response = await ai.models.generateContent({
+        model: preferredModel,
+        contents,
+        config,
+      });
+    } catch (error) {
+      if (getGeminiApiErrorStatus(error) !== 404) throw error;
+      console.warn('Configured Gemini model unavailable; trying a supported fallback model.', {
+        preferredModel,
+        fallbackModel,
+      });
+      response = await ai.models.generateContent({
+        model: fallbackModel,
+        contents,
+        config,
+      });
+    }
 
     const responseText = response.text?.trim();
     if (!responseText) {
