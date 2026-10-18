@@ -1,0 +1,6 @@
+{
+  "name": "Blinka Extractor Financiero",
+  "description": "Agente Extractor Financiero de alta precisión para el sistema de gobernanza de pagos corporativos de Blinka.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
