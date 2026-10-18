@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   CheckCircle2,
   AlertTriangle,
@@ -10,6 +10,8 @@ import {
   RotateCcw,
   Eye,
   ShieldAlert,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import {
   evaluateGovernanceDecision,
@@ -216,6 +218,11 @@ export const KanbanDecisionBoard: React.FC<KanbanDecisionBoardProps> = ({
   onCfoDecisionForItem,
   onResetAllSamples,
 }) => {
+  const [paidPage, setPaidPage] = useState(1);
+  const [escalatedPage, setEscalatedPage] = useState(1);
+  const [rejectedPage, setRejectedPage] = useState(1);
+  const PAGE_SIZE = 5;
+
   const evaluatedItems = history.map((item) => ({
     item,
     decision: evaluateGovernanceDecision(item.result, policy),
@@ -228,6 +235,55 @@ export const KanbanDecisionBoard: React.FC<KanbanDecisionBoardProps> = ({
   const totalPaidUsd = paidItems.reduce((acc, cur) => acc + cur.decision.amountUsd, 0);
   const totalEscalatedUsd = escalatedItems.reduce((acc, cur) => acc + cur.decision.amountUsd, 0);
   const totalRejectedUsd = rejectedItems.reduce((acc, cur) => acc + cur.decision.amountUsd, 0);
+  const currentPaidPage = Math.min(
+    paidPage,
+    Math.max(Math.ceil(paidItems.length / PAGE_SIZE), 1)
+  );
+  const currentEscalatedPage = Math.min(
+    escalatedPage,
+    Math.max(Math.ceil(escalatedItems.length / PAGE_SIZE), 1)
+  );
+  const currentRejectedPage = Math.min(
+    rejectedPage,
+    Math.max(Math.ceil(rejectedItems.length / PAGE_SIZE), 1)
+  );
+
+  const renderPagination = (
+    totalItems: number,
+    page: number,
+    onPageChange: (nextPage: number) => void
+  ) => {
+    const totalPages = Math.max(Math.ceil(totalItems / PAGE_SIZE), 1);
+    const currentPage = Math.min(page, totalPages);
+
+    if (totalItems <= PAGE_SIZE) return null;
+
+    return (
+      <nav className="flex items-center justify-between gap-2 pt-2" aria-label="Páginas de columna">
+        <button
+          type="button"
+          onClick={() => onPageChange(Math.max(currentPage - 1, 1))}
+          disabled={currentPage === 1}
+          className="inline-flex items-center gap-1 rounded-lg border border-slate-700 px-2.5 py-1.5 text-[11px] font-semibold text-slate-200 hover:border-cyan-400/50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+        >
+          <ChevronLeft className="h-3 w-3" />
+          Anterior
+        </button>
+        <span className="text-[11px] font-mono text-slate-400">
+          {currentPage}/{totalPages}
+        </span>
+        <button
+          type="button"
+          onClick={() => onPageChange(Math.min(currentPage + 1, totalPages))}
+          disabled={currentPage === totalPages}
+          className="inline-flex items-center gap-1 rounded-lg border border-slate-700 px-2.5 py-1.5 text-[11px] font-semibold text-slate-200 hover:border-cyan-400/50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+        >
+          Siguiente
+          <ChevronRight className="h-3 w-3" />
+        </button>
+      </nav>
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -280,7 +336,9 @@ export const KanbanDecisionBoard: React.FC<KanbanDecisionBoardProps> = ({
                 Ninguna factura en esta columna.
               </div>
             ) : (
-              paidItems.map(({ item, decision }) => (
+              paidItems
+                .slice((currentPaidPage - 1) * PAGE_SIZE, currentPaidPage * PAGE_SIZE)
+                .map(({ item, decision }) => (
                 <KanbanCard
                   key={item.id}
                   item={item}
@@ -288,9 +346,10 @@ export const KanbanDecisionBoard: React.FC<KanbanDecisionBoardProps> = ({
                   onSelectForSimulator={onSelectForSimulator}
                   onCfoDecisionForItem={onCfoDecisionForItem}
                 />
-              ))
+                ))
             )}
           </div>
+          {renderPagination(paidItems.length, paidPage, setPaidPage)}
         </div>
 
         {/* Column 2: ESCALATED */}
@@ -318,7 +377,12 @@ export const KanbanDecisionBoard: React.FC<KanbanDecisionBoardProps> = ({
                 ¡Bandeja limpia! No hay pagos pendientes de aprobación humana.
               </div>
             ) : (
-              escalatedItems.map(({ item, decision }) => (
+              escalatedItems
+                .slice(
+                  (currentEscalatedPage - 1) * PAGE_SIZE,
+                  currentEscalatedPage * PAGE_SIZE
+                )
+                .map(({ item, decision }) => (
                 <KanbanCard
                   key={item.id}
                   item={item}
@@ -326,9 +390,10 @@ export const KanbanDecisionBoard: React.FC<KanbanDecisionBoardProps> = ({
                   onSelectForSimulator={onSelectForSimulator}
                   onCfoDecisionForItem={onCfoDecisionForItem}
                 />
-              ))
+                ))
             )}
           </div>
+          {renderPagination(escalatedItems.length, escalatedPage, setEscalatedPage)}
         </div>
 
         {/* Column 3: REJECTED */}
@@ -356,7 +421,9 @@ export const KanbanDecisionBoard: React.FC<KanbanDecisionBoardProps> = ({
                 Ninguna factura frenada.
               </div>
             ) : (
-              rejectedItems.map(({ item, decision }) => (
+              rejectedItems
+                .slice((currentRejectedPage - 1) * PAGE_SIZE, currentRejectedPage * PAGE_SIZE)
+                .map(({ item, decision }) => (
                 <KanbanCard
                   key={item.id}
                   item={item}
@@ -364,9 +431,10 @@ export const KanbanDecisionBoard: React.FC<KanbanDecisionBoardProps> = ({
                   onSelectForSimulator={onSelectForSimulator}
                   onCfoDecisionForItem={onCfoDecisionForItem}
                 />
-              ))
+                ))
             )}
           </div>
+          {renderPagination(rejectedItems.length, rejectedPage, setRejectedPage)}
         </div>
       </div>
     </div>

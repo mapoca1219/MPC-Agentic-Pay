@@ -9,20 +9,19 @@ import {
   FileJson,
   Fingerprint,
   RotateCcw,
-  AlertTriangle,
   Ban,
   Clock,
   CreditCard,
   Terminal,
-  MessageSquare,
   UserCheck,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   ArrowRightLeft,
   Scale,
   Building2,
   ExternalLink,
-  Layers,
   LayoutGrid,
   List,
 } from 'lucide-react';
@@ -171,12 +170,53 @@ export const ExtractionHistory: React.FC<ExtractionHistoryProps> = ({
 }) => {
   const [viewMode, setViewMode] = useState<'cards' | 'grid'>('cards');
   const [expandedPayloadId, setExpandedPayloadId] = useState<string | null>(null);
+  const [filterDecision, setFilterDecision] = useState<'all' | 'PAID' | 'REJECTED' | 'ESCALATED'>('all');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 9;
 
-  const accountingRows = history.map((item, idx) => mapItemToAccountingRow(item, idx, policy));
+  const evaluatedHistory = history.map((item, idx) => ({
+    item,
+    decision: evaluateGovernanceDecision(item.result, policy),
+    row: mapItemToAccountingRow(item, idx, policy),
+  }));
+
+  const accountingRows = evaluatedHistory.map((x) => x.row);
+  const paidCount = evaluatedHistory.filter((x) => x.decision.decisionCode === 'PAID').length;
+  const rejectedCount = evaluatedHistory.filter((x) => x.decision.decisionCode === 'REJECTED').length;
+  const escalatedCount = evaluatedHistory.filter((x) => x.decision.decisionCode === 'ESCALATED').length;
+
+  const filteredHistory = evaluatedHistory.filter(
+    (x) => filterDecision === 'all' || x.decision.decisionCode === filterDecision
+  );
+
+  const totalPages = Math.max(Math.ceil(filteredHistory.length / PAGE_SIZE), 1);
+  const currentPage = Math.min(page, totalPages);
+  const currentPageItems = filteredHistory.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
+  const decisionFilters: Array<{
+    value: typeof filterDecision;
+    label: string;
+    count: number;
+  }> = [
+    { value: 'all', label: 'Todos', count: history.length },
+    { value: 'PAID', label: 'Pagados', count: paidCount },
+    { value: 'REJECTED', label: 'Rechazados', count: rejectedCount },
+    { value: 'ESCALATED', label: 'Escalados', count: escalatedCount },
+  ];
 
   const handleTogglePayload = (itemId: string) => {
     setExpandedPayloadId((prev) => (prev === itemId ? null : itemId));
   };
+
+  const handleSetFilter = (decision: 'all' | 'PAID' | 'REJECTED' | 'ESCALATED') => {
+    setFilterDecision(decision);
+    setPage(1);
+  };
+
+  const handlePrevPage = () => setPage(Math.max(currentPage - 1, 1));
+  const handleNextPage = () => setPage(Math.min(currentPage + 1, totalPages));
 
   const handleExportCSV = () => {
     const headers = [
@@ -262,14 +302,6 @@ export const ExtractionHistory: React.FC<ExtractionHistoryProps> = ({
     a.click();
     URL.revokeObjectURL(url);
   };
-
-  const decisions = history.map((item) => evaluateGovernanceDecision(item.result, policy));
-  const paidCount = decisions.filter((d) => d.decisionCode === 'PAID').length;
-  const rejectedCount = decisions.filter((d) => d.decisionCode === 'REJECTED').length;
-  const escalatedCount = decisions.filter((d) => d.decisionCode === 'ESCALATED').length;
-  const totalPaidUsd = decisions
-    .filter((d) => d.decisionCode === 'PAID')
-    .reduce((acc, cur) => acc + cur.amountUsd, 0);
 
   return (
     <div className="bg-[#111827]/70 backdrop-blur-md rounded-3xl border border-slate-800/80 p-5 sm:p-7 shadow-2xl space-y-6">
@@ -371,20 +403,40 @@ export const ExtractionHistory: React.FC<ExtractionHistoryProps> = ({
 
       {/* Lista de Documentos en Cards Ultra Profesionales */}
       {history.length > 0 ? (
-        <div
-          className={
-            viewMode === 'grid'
-              ? 'grid grid-cols-1 lg:grid-cols-2 gap-4'
-              : 'space-y-4'
-          }
-        >
-          {history.map((item, idx) => {
-            const decision = evaluateGovernanceDecision(item.result, policy);
+        <>
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filtrar conciliación por decisión">
+            {decisionFilters.map((filter) => (
+              <button
+                key={filter.value}
+                type="button"
+                onClick={() => handleSetFilter(filter.value)}
+                aria-pressed={filterDecision === filter.value}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors cursor-pointer ${
+                  filterDecision === filter.value
+                    ? 'bg-cyan-500/15 text-[#00F5D4] border-cyan-400/50'
+                    : 'bg-[#0D1322] text-slate-300 border-slate-700 hover:border-slate-500'
+                }`}
+              >
+                {filter.label} <span className="ml-1 font-mono">({filter.count})</span>
+              </button>
+            ))}
+          </div>
+
+          {currentPageItems.length > 0 ? (
+            <div
+              className={
+                viewMode === 'grid'
+                  ? 'grid grid-cols-1 lg:grid-cols-2 gap-4'
+                  : 'space-y-4'
+              }
+            >
+              {currentPageItems.map(({ item, decision }, idx) => {
+            const displayIndex = (currentPage - 1) * PAGE_SIZE + idx;
             const isAttack = item.result.securityAudit.promptInjectionDetected;
             const origAmount = item.result.invoice.totalAmount ?? 0;
             const origCurrency = item.result.invoice.currency || 'USD';
             const vendorTitle = item.result.vendor.name || item.title;
-            const invoiceNumber = item.result.invoice.invoiceId || `DOC-${String(idx + 1).padStart(3, '0')}`;
+            const invoiceNumber = item.result.invoice.invoiceId || `DOC-${String(displayIndex + 1).padStart(3, '0')}`;
             const issueDate = item.result.invoice.issueDate || item.timestamp.slice(0, 10);
             const dueDateLabel = item.result.invoice.dueDate || 'Sin fecha';
             const isActive = item.id === activeId;
@@ -394,7 +446,6 @@ export const ExtractionHistory: React.FC<ExtractionHistoryProps> = ({
               item.result.documentMetadata.rawTextExcerpt || item.title
             );
             const shortHash = item.result.securityAudit.shortHash || fallbackHash.shortHash;
-            const fullHash = item.result.securityAudit.documentHashSha256 || fallbackHash.fullHash;
             const accountNumber = item.result.vendor.bankDetails?.accountNumber || 'S/N';
             const bankName = item.result.vendor.bankDetails?.bankName || 'Banco no especificado';
             const countryRegion = item.result.vendor.countryRegion || 'Global';
@@ -413,7 +464,7 @@ export const ExtractionHistory: React.FC<ExtractionHistoryProps> = ({
                 <div className="p-4 sm:p-5 border-b border-slate-800/80 bg-[#12192A]/80 flex flex-col md:flex-row md:items-center justify-between gap-3">
                   <div className="flex items-start gap-3 min-w-0">
                     <div className="w-10 h-10 rounded-xl bg-[#1A2338] border border-slate-700/80 flex items-center justify-center text-[#00F5D4] shrink-0 font-black text-xs">
-                      {idx + 1}
+                      {displayIndex + 1}
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -646,7 +697,52 @@ export const ExtractionHistory: React.FC<ExtractionHistoryProps> = ({
               </div>
             );
           })}
-        </div>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-slate-800 p-8 text-center">
+              <p className="text-sm font-semibold text-slate-200">No hay documentos en este filtro.</p>
+              <button
+                type="button"
+                onClick={() => handleSetFilter('all')}
+                className="mt-3 text-xs font-semibold text-[#00F5D4] hover:underline cursor-pointer"
+              >
+                Mostrar todos los documentos
+              </button>
+            </div>
+          )}
+
+          {filteredHistory.length > PAGE_SIZE && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-slate-800/70 pt-4">
+              <span className="text-xs text-slate-400">
+                Mostrando {(currentPage - 1) * PAGE_SIZE + 1}–
+                {Math.min(currentPage * PAGE_SIZE, filteredHistory.length)} de {filteredHistory.length}
+              </span>
+              <nav className="flex items-center gap-2" aria-label="Páginas de conciliación">
+                <button
+                  type="button"
+                  onClick={handlePrevPage}
+                  disabled={currentPage === 1}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-700 text-slate-200 hover:border-cyan-400/50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  Anterior
+                </button>
+                <span className="text-xs font-mono text-slate-300">
+                  Página {currentPage} de {totalPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleNextPage}
+                  disabled={currentPage === totalPages}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-700 text-slate-200 hover:border-cyan-400/50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  Siguiente
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              </nav>
+            </div>
+          )}
+        </>
       ) : (
         <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-slate-800 rounded-2xl p-6">
           <div className="w-14 h-14 rounded-2xl bg-slate-800/50 flex items-center justify-center text-slate-500 mb-3">
