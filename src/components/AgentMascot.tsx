@@ -207,8 +207,10 @@ export const AgentMascot: React.FC<AgentMascotProps> = ({
           <span className="font-bold uppercase tracking-wider text-purple-300">
             Pipeline Determinista Blinka Sentinel AI (5 Pasos):
           </span>
-          <span className="font-mono text-[#00F5D4]">
-            {isScanning ? `⚡ Procesando documento...` : '✓ 5/5 Pasos Auditados'}
+          <span className="font-mono text-[#00F5D4]" aria-live="polite">
+            {isScanning
+              ? `⚡ ${SCAN_STEPS.find((step) => step.id === scanStep)?.label ?? 'Procesando documento...'}`
+              : '✓ 5/5 Pasos Auditados'}
           </span>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">

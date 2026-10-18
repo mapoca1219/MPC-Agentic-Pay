@@ -24,6 +24,8 @@ import {
 } from './utils/financialRules';
 import { AlertCircle } from 'lucide-react';
 
+const SCAN_STEP_DURATION_MS = 850;
+
 function buildInitialHistory(): HistoryItem[] {
   return SAMPLE_INVOICES.map((sample, index) => ({
     id: `sample-${sample.id}`,
@@ -44,6 +46,7 @@ export default function App() {
   );
   const [uploadedPreview, setUploadedPreview] = useState<{ url?: string; filename?: string }>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [scanStep, setScanStep] = useState<number>(5);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>(buildInitialHistory);
 
@@ -147,7 +150,15 @@ export default function App() {
     documentHint?: string;
   }) => {
     setIsLoading(true);
+    setScanStep(1);
     setErrorMessage(null);
+
+    const scanAnimation = (async () => {
+      for (let step = 2; step <= 5; step += 1) {
+        await new Promise<void>((resolve) => setTimeout(resolve, SCAN_STEP_DURATION_MS));
+        setScanStep(step);
+      }
+    })();
 
     if (payload.fileData) {
       setSelectedSample(null);
@@ -158,19 +169,29 @@ export default function App() {
     }
 
     try {
-      const response = await fetch('/api/extract', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+      let extracted: ExtractionResult;
+      try {
+        const response = await fetch('/api/extract', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
 
-      const resData = await response.json();
+        const resData = await response.json();
 
-      if (!response.ok || !resData.success) {
-        throw new Error(resData.error || resData.details || 'Error al procesar el documento.');
+        if (!response.ok || !resData.success) {
+          throw new Error(resData.error || resData.details || 'Error al procesar el documento.');
+        }
+
+        extracted = resData.data;
+      } catch {
+        extracted = parseDocumentDeterministically(
+          payload.text || customText,
+          payload.documentHint
+        );
       }
 
-      const extracted: ExtractionResult = resData.data;
+      await scanAnimation;
       setActiveResult(extracted);
       if (payload.fileData && extracted.documentMetadata?.rawTextExcerpt) {
         setCustomText(extracted.documentMetadata.rawTextExcerpt);
@@ -185,24 +206,10 @@ export default function App() {
       };
 
       setHistory((prev) => [newItem, ...prev.slice(0, 14)]);
-    } catch {
-      const fallbackExtracted = parseDocumentDeterministically(
-        payload.text || customText,
-        payload.documentHint
-      );
-      setActiveResult(fallbackExtracted);
-
-      const newItem: HistoryItem = {
-        id: `ext-${Date.now()}`,
-        timestamp: new Date().toISOString(),
-        title: fallbackExtracted.vendor.name || payload.documentHint || 'Documento Auditado',
-        result: fallbackExtracted,
-        sampleId: payload.fileData ? undefined : selectedSample?.id,
-      };
-
-      setHistory((prev) => [newItem, ...prev.slice(0, 14)]);
     } finally {
+      await scanAnimation;
       setIsLoading(false);
+      setScanStep(5);
     }
   };
 
@@ -295,7 +302,7 @@ export default function App() {
                 data={activeResult}
                 policy={policy}
                 isScanning={isLoading}
-                scanStep={5}
+                scanStep={scanStep}
                 onCfoDecision={handleActiveCfoDecision}
               />
             </div>
