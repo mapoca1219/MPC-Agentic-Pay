@@ -19,7 +19,7 @@ import {
   type ExtractionResult,
 } from '../src/utils/financialRules.js';
 import {
-  getGeminiFallbackModel,
+  getAvailableGeminiFlashModels,
   getGeminiApiErrorMessage,
   getGeminiApiErrorStatus,
 } from '../src/utils/geminiApiError.js';
@@ -364,8 +364,19 @@ export default async function extractHandler(req: Request, res: Response): Promi
 
   try {
     const ai = new GoogleGenAI({ apiKey });
-    const preferredModel = process.env.GEMINI_MODEL?.trim() || 'gemini-2.5-flash';
-    const fallbackModel = getGeminiFallbackModel(preferredModel);
+    const preferredModel = process.env.GEMINI_MODEL?.trim() || 'gemini-2.5-flash-lite';
+    const availableModels = [];
+    for await (const model of await ai.models.list({ config: { pageSize: 100 } })) {
+      availableModels.push(model);
+    }
+    const modelCandidates = getAvailableGeminiFlashModels(availableModels, preferredModel);
+    if (modelCandidates.length === 0) {
+      res.status(502).json({
+        error:
+          'Google no reporta modelos Gemini Flash compatibles con esta clave. En AI Studio, revisa Dashboard → Projects y confirma que la clave pertenezca al proyecto correcto y tenga habilitada Gemini API. No se envió el archivo a un modelo.',
+      });
+      return;
+    }
     const contents = [
       {
         inlineData: {
@@ -383,24 +394,19 @@ export default async function extractHandler(req: Request, res: Response): Promi
       responseSchema: extractionSchema,
       temperature: 0,
     };
-    let response;
-    try {
-      response = await ai.models.generateContent({
-        model: preferredModel,
-        contents,
-        config,
-      });
-    } catch (error) {
-      if (getGeminiApiErrorStatus(error) !== 404) throw error;
-      console.warn('Configured Gemini model unavailable; trying a supported fallback model.', {
-        preferredModel,
-        fallbackModel,
-      });
-      response = await ai.models.generateContent({
-        model: fallbackModel,
-        contents,
-        config,
-      });
+    let response = undefined;
+    let lastModelError: unknown;
+    for (const model of modelCandidates) {
+      try {
+        response = await ai.models.generateContent({ model, contents, config });
+        break;
+      } catch (error) {
+        if (getGeminiApiErrorStatus(error) !== 404) throw error;
+        lastModelError = error;
+      }
+    }
+    if (!response) {
+      throw lastModelError ?? new Error('No available Gemini model supports content generation.');
     }
 
     const responseText = response.text?.trim();
