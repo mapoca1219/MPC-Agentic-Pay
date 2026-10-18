@@ -112,6 +112,202 @@ function renderUrgencyBadge(u: PaymentUrgencyInfo) {
   );
 }
 
+function formatOrigAndUsdLabel(rawTotal: number, origCurrency: string, amountUsd: number): string {
+  const formattedUsd = `$${amountUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD`;
+  if (origCurrency === 'USD') {
+    return formattedUsd;
+  }
+  const formattedOrig = `$${rawTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })} ${origCurrency}`;
+  return `${formattedOrig} (≈ ${formattedUsd})`;
+}
+
+interface DecisionSummaryHeaderProps {
+  data: ExtractionResult;
+  decision: GovernanceDecision;
+  shortHash: string;
+  fullHash: string;
+  isAttack: boolean;
+  hashCopied: boolean;
+  onCopyHash: () => void;
+}
+
+const DecisionSummaryHeader: React.FC<DecisionSummaryHeaderProps> = ({
+  data,
+  decision,
+  shortHash,
+  fullHash,
+  isAttack,
+  hashCopied,
+  onCopyHash,
+}) => {
+  const decisionStyles = getDecisionHeaderStyle(decision.decisionCode);
+  const rawTotal = data.invoice.totalAmount ?? 0;
+  const origCurrency = data.invoice.currency || 'USD';
+  const vendorTitle = data.vendor.name || 'Emisor No Identificado';
+  const invoiceNumber = data.invoice.invoiceId || 'S/N';
+  const dueDateText = data.invoice.dueDate || 'No especificado';
+  const accountNumberText = data.vendor.bankDetails?.accountNumber || 'S/N';
+
+  const renderHumanApprovalPill = () => {
+    if (!decision.humanApproval) return null;
+    const label =
+      decision.humanApproval.status === 'APPROVED' ? 'Autorizado por CFO' : 'Rechazado por CFO';
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-purple-500/30 text-purple-200 border border-purple-400/40">
+        <UserCheck className="h-3 w-3 text-purple-300" />
+        {label}
+      </span>
+    );
+  };
+
+  const renderRegisteredAccountNote = () => {
+    if (!decision.registeredAccount) return null;
+    const colorClass = decision.accountMatchesRegistered ? 'text-[#00F5D4]' : 'text-amber-400';
+    const text = decision.accountMatchesRegistered
+      ? '✓ Oficial'
+      : `≠ ${decision.registeredAccount}`;
+    return <span className={`ml-1 text-[10px] ${colorClass}`}>{text}</span>;
+  };
+
+  return (
+    <div className="bg-[#131B2E] text-white p-3.5 sm:p-4 space-y-3 border-b border-slate-800/80">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className="flex items-center gap-2.5">
+          <div
+            className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 border ${decisionStyles.bg}`}
+          >
+            {renderDecisionIcon(decision.decisionCode)}
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span
+                className={`text-[11px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded ${decisionStyles.badge}`}
+              >
+                {decision.decisionCode} • {decision.actionLabel.toUpperCase()}
+              </span>
+              {renderUrgencyBadge(decision.urgency)}
+              {renderHumanApprovalPill()}
+            </div>
+            <h3 className="text-sm sm:text-base font-bold text-white mt-0.5 flex items-center gap-2 flex-wrap">
+              <span>{vendorTitle}</span>
+              <span className="text-xs font-mono font-normal text-slate-400">
+                • Factura #{invoiceNumber}
+              </span>
+            </h3>
+          </div>
+        </div>
+
+        <div className="bg-[#0D1322] px-3.5 py-2 rounded-xl border border-slate-700/80 text-right shrink-0">
+          <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider block">
+            Monto Original → Equivalente USD
+          </span>
+          <div className="font-mono font-black text-sm text-white">
+            ${rawTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })} {origCurrency}
+          </div>
+          <div className="font-mono text-xs font-bold text-[#00F5D4]">
+            ≈ ${decision.amountUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] bg-[#0D1322] p-2.5 rounded-xl border border-slate-800">
+        <div className="flex items-center gap-1.5">
+          <Calendar className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+          <div>
+            <span className="text-slate-400 block text-[9px]">¿Para cuándo? (Vence):</span>
+            <strong className="font-mono text-white">{dueDateText}</strong>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <CreditCard className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+          <div className="truncate">
+            <span className="text-slate-400 block text-[9px]">Cuenta Destino vs Oficial:</span>
+            <strong className="font-mono text-white truncate block">
+              {accountNumberText}
+              {renderRegisteredAccountNote()}
+            </strong>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between sm:justify-end gap-1.5">
+          {isAttack ? (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold text-[9px]">
+              <ShieldAlert className="h-3 w-3 text-rose-400" />
+              Manipulación
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-500/20 text-[#00F5D4] border border-cyan-400/40 font-bold text-[9px]">
+              <ShieldCheck className="h-3 w-3 text-[#00F5D4]" />
+              Verificada
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={onCopyHash}
+            title={`Copiar SHA-256: ${fullHash}`}
+            className="inline-flex items-center gap-1 font-mono text-[10px] bg-[#131B2E] hover:bg-[#1C2841] text-purple-300 px-1.5 py-0.5 rounded border border-slate-700 cursor-pointer"
+          >
+            <Fingerprint className="h-3 w-3" />
+            <span>{shortHash}</span>
+            {hashCopied ? (
+              <Check className="h-2.5 w-2.5 text-[#00F5D4]" />
+            ) : (
+              <Copy className="h-2.5 w-2.5" />
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const GovernanceChecksGrid: React.FC<{
+  decision: GovernanceDecision;
+  maxLimitUsd: number;
+}> = ({ decision, maxLimitUsd }) => {
+  const withinLimit = decision.amountUsd <= maxLimitUsd;
+  const agreementLabel =
+    decision.agreedAmountUsd !== null
+      ? `$${decision.agreedAmountUsd} vs $${decision.amountUsd}`
+      : 'Sin acuerdo';
+
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-[11px]">
+      <div className="p-2.5 rounded-xl bg-[#0D1322] border border-slate-800/90">
+        <span className="text-slate-400 block text-[10px]">1. Lista Blanca:</span>
+        <strong className={decision.isWhitelistedVendor ? 'text-[#00F5D4]' : 'text-amber-300'}>
+          {decision.isWhitelistedVendor ? '✓ Autorizado' : '⚠ Nuevo'}
+        </strong>
+      </div>
+      <div className="p-2.5 rounded-xl bg-[#0D1322] border border-slate-800/90">
+        <span className="text-slate-400 block text-[10px]">2. Cuenta Bancaria:</span>
+        <strong
+          className={decision.accountMatchesRegistered ? 'text-[#00F5D4]' : 'text-amber-300'}
+        >
+          {decision.accountMatchesRegistered ? '✓ Oficial' : '⚠ No Coincide'}
+        </strong>
+      </div>
+      <div className="p-2.5 rounded-xl bg-[#0D1322] border border-slate-800/90">
+        <span className="text-slate-400 block text-[10px]">3. Acuerdo (USD):</span>
+        <strong className="font-mono text-slate-100">{agreementLabel}</strong>
+      </div>
+      <div className="p-2.5 rounded-xl bg-[#0D1322] border border-slate-800/90">
+        <span className="text-slate-400 block text-[10px]">4. Límite (${maxLimitUsd}):</span>
+        <strong className={withinLimit ? 'text-[#00F5D4]' : 'text-amber-300'}>
+          {withinLimit ? '✓ Dentro' : '⚠ Supera'}
+        </strong>
+      </div>
+      <div className="p-2.5 rounded-xl bg-[#0D1322] border border-slate-800/90 col-span-2 sm:col-span-1">
+        <span className="text-slate-400 block text-[10px]">5. Anti-Duplicado:</span>
+        <strong className={decision.isDuplicate ? 'text-rose-400' : 'text-[#00F5D4]'}>
+          {decision.isDuplicate ? '⛔ Duplicado' : '✓ Único'}
+        </strong>
+      </div>
+    </div>
+  );
+};
+
 interface CfoApprovalBannerProps {
   vendorName: string;
   formattedOrigAndUsd: string;
@@ -435,14 +631,12 @@ export const ExtractionResults: React.FC<ExtractionResultsProps> = ({
   };
 
   const decisionStyles = getDecisionHeaderStyle(decision.decisionCode);
-  const rawTotal = data.invoice.totalAmount ?? 0;
-  const origCurrency = data.invoice.currency || 'USD';
-  const formattedOrigAndUsd =
-    origCurrency !== 'USD'
-      ? `$${rawTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })} ${origCurrency} (≈ $${decision.amountUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD)`
-      : `$${decision.amountUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD`;
-
-  const withinLimit = decision.amountUsd <= policy.maxAmountWithoutApprovalUsd;
+  const formattedOrigAndUsd = formatOrigAndUsdLabel(
+    data.invoice.totalAmount ?? 0,
+    data.invoice.currency || 'USD',
+    decision.amountUsd
+  );
+  const isRailActive = decision.decisionCode === 'PAID';
   const showCfoBanner =
     Boolean(onCfoDecision) &&
     (decision.decisionCode === 'ESCALATED' || Boolean(decision.humanApproval));
@@ -459,119 +653,16 @@ export const ExtractionResults: React.FC<ExtractionResultsProps> = ({
 
       {/* 2. Protagonist Card: Decision + Plain-Spanish Explanation + CFO Simulator */}
       <div className="bg-[#111827]/95 backdrop-blur-md rounded-2xl border border-slate-800/80 shadow-xl overflow-hidden">
-        {/* Top Summary Strip */}
-        <div className="bg-[#131B2E] text-white p-3.5 sm:p-4 space-y-3 border-b border-slate-800/80">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-            <div className="flex items-center gap-2.5">
-              <div
-                className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 border ${decisionStyles.bg}`}
-              >
-                {renderDecisionIcon(decision.decisionCode)}
-              </div>
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span
-                    className={`text-[11px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded ${decisionStyles.badge}`}
-                  >
-                    {decision.decisionCode} • {decision.actionLabel.toUpperCase()}
-                  </span>
-                  {renderUrgencyBadge(decision.urgency)}
-                  {decision.humanApproval && (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-purple-500/30 text-purple-200 border border-purple-400/40">
-                      <UserCheck className="h-3 w-3 text-purple-300" />
-                      {decision.humanApproval.status === 'APPROVED'
-                        ? 'Autorizado por CFO'
-                        : 'Rechazado por CFO'}
-                    </span>
-                  )}
-                </div>
-                <h3 className="text-sm sm:text-base font-bold text-white mt-0.5 flex items-center gap-2 flex-wrap">
-                  <span>{data.vendor.name || 'Emisor No Identificado'}</span>
-                  <span className="text-xs font-mono font-normal text-slate-400">
-                    • Factura #{data.invoice.invoiceId || 'S/N'}
-                  </span>
-                </h3>
-              </div>
-            </div>
+        <DecisionSummaryHeader
+          data={data}
+          decision={decision}
+          shortHash={shortHash}
+          fullHash={fullHash}
+          isAttack={isAttack}
+          hashCopied={hashCopied}
+          onCopyHash={handleCopyHash}
+        />
 
-            {/* Dual Amount Box */}
-            <div className="bg-[#0D1322] px-3.5 py-2 rounded-xl border border-slate-700/80 text-right shrink-0">
-              <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider block">
-                Monto Original → Equivalente USD
-              </span>
-              <div className="font-mono font-black text-sm text-white">
-                ${rawTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })} {origCurrency}
-              </div>
-              <div className="font-mono text-xs font-bold text-[#00F5D4]">
-                ≈ ${decision.amountUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD
-              </div>
-            </div>
-          </div>
-
-          {/* DueDate + Bank Account + SHA-256 Strip */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] bg-[#0D1322] p-2.5 rounded-xl border border-slate-800">
-            <div className="flex items-center gap-1.5">
-              <Calendar className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-              <div>
-                <span className="text-slate-400 block text-[9px]">¿Para cuándo? (Vence):</span>
-                <strong className="font-mono text-white">
-                  {data.invoice.dueDate || 'No especificado'}
-                </strong>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <CreditCard className="h-3.5 w-3.5 text-purple-400 shrink-0" />
-              <div className="truncate">
-                <span className="text-slate-400 block text-[9px]">Cuenta Destino vs Oficial:</span>
-                <strong className="font-mono text-white truncate block">
-                  {data.vendor.bankDetails?.accountNumber || 'S/N'}
-                  {decision.registeredAccount && (
-                    <span
-                      className={`ml-1 text-[10px] ${
-                        decision.accountMatchesRegistered ? 'text-[#00F5D4]' : 'text-amber-400'
-                      }`}
-                    >
-                      {decision.accountMatchesRegistered
-                        ? '✓ Oficial'
-                        : `≠ ${decision.registeredAccount}`}
-                    </span>
-                  )}
-                </strong>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between sm:justify-end gap-1.5">
-              {isAttack ? (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold text-[9px]">
-                  <ShieldAlert className="h-3 w-3 text-rose-400" />
-                  Manipulación
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-500/20 text-[#00F5D4] border border-cyan-400/40 font-bold text-[9px]">
-                  <ShieldCheck className="h-3 w-3 text-[#00F5D4]" />
-                  Verificada
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={handleCopyHash}
-                title={`Copiar SHA-256: ${fullHash}`}
-                className="inline-flex items-center gap-1 font-mono text-[10px] bg-[#131B2E] hover:bg-[#1C2841] text-purple-300 px-1.5 py-0.5 rounded border border-slate-700 cursor-pointer"
-              >
-                <Fingerprint className="h-3 w-3" />
-                <span>{shortHash}</span>
-                {hashCopied ? (
-                  <Check className="h-2.5 w-2.5 text-[#00F5D4]" />
-                ) : (
-                  <Copy className="h-2.5 w-2.5" />
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Main Body: Plain Spanish Explanation + 5 Rules Grid + Smart Rail + Optional Tech Accordion */}
         <div className="p-3.5 sm:p-4 space-y-3">
           {/* Protagonist: Plain Spanish Explanation */}
           <div
@@ -588,49 +679,10 @@ export const ExtractionResults: React.FC<ExtractionResultsProps> = ({
             </div>
           </div>
 
-          {/* 5 Governance Checks Summary Pills */}
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-[11px]">
-            <div className="p-2.5 rounded-xl bg-[#0D1322] border border-slate-800/90">
-              <span className="text-slate-400 block text-[10px]">1. Lista Blanca:</span>
-              <strong
-                className={decision.isWhitelistedVendor ? 'text-[#00F5D4]' : 'text-amber-300'}
-              >
-                {decision.isWhitelistedVendor ? '✓ Autorizado' : '⚠ Nuevo'}
-              </strong>
-            </div>
-            <div className="p-2.5 rounded-xl bg-[#0D1322] border border-slate-800/90">
-              <span className="text-slate-400 block text-[10px]">2. Cuenta Bancaria:</span>
-              <strong
-                className={
-                  decision.accountMatchesRegistered ? 'text-[#00F5D4]' : 'text-amber-300'
-                }
-              >
-                {decision.accountMatchesRegistered ? '✓ Oficial' : '⚠ No Coincide'}
-              </strong>
-            </div>
-            <div className="p-2.5 rounded-xl bg-[#0D1322] border border-slate-800/90">
-              <span className="text-slate-400 block text-[10px]">3. Acuerdo (USD):</span>
-              <strong className="font-mono text-slate-100">
-                {decision.agreedAmountUsd !== null
-                  ? `$${decision.agreedAmountUsd} vs $${decision.amountUsd}`
-                  : 'Sin acuerdo'}
-              </strong>
-            </div>
-            <div className="p-2.5 rounded-xl bg-[#0D1322] border border-slate-800/90">
-              <span className="text-slate-400 block text-[10px]">
-                4. Límite (${policy.maxAmountWithoutApprovalUsd}):
-              </span>
-              <strong className={withinLimit ? 'text-[#00F5D4]' : 'text-amber-300'}>
-                {withinLimit ? '✓ Dentro' : '⚠ Supera'}
-              </strong>
-            </div>
-            <div className="p-2.5 rounded-xl bg-[#0D1322] border border-slate-800/90 col-span-2 sm:col-span-1">
-              <span className="text-slate-400 block text-[10px]">5. Anti-Duplicado:</span>
-              <strong className={decision.isDuplicate ? 'text-rose-400' : 'text-[#00F5D4]'}>
-                {decision.isDuplicate ? '⛔ Duplicado' : '✓ Único'}
-              </strong>
-            </div>
-          </div>
+          <GovernanceChecksGrid
+            decision={decision}
+            maxLimitUsd={policy.maxAmountWithoutApprovalUsd}
+          />
 
           {/* Smart Rail Routing Strip */}
           <div className="bg-[#131B2E] border border-purple-500/40 rounded-xl px-3.5 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
@@ -647,14 +699,12 @@ export const ExtractionResults: React.FC<ExtractionResultsProps> = ({
             </div>
             <span
               className={`text-[10px] font-mono font-bold px-2.5 py-1 rounded-lg border self-start sm:self-auto ${
-                decision.decisionCode === 'PAID'
+                isRailActive
                   ? 'bg-cyan-500/20 text-[#00F5D4] border-cyan-400/50'
                   : 'bg-[#0D1322] text-slate-400 border-slate-700'
               }`}
             >
-              {decision.decisionCode === 'PAID'
-                ? '✓ Riel Activo para Liquidación'
-                : '⏸ Riel en Espera'}
+              {isRailActive ? '✓ Riel Activo para Liquidación' : '⏸ Riel en Espera'}
             </span>
           </div>
 

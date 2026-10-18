@@ -112,6 +112,10 @@ export const Header: React.FC<HeaderProps> = ({
           >
             {navItems.map((tab) => {
               const isActive = activeView === tab.id;
+              const defaultBadgeStyle = tab.badgeStyle ?? '';
+              const badgeStyle = isActive
+                ? 'bg-slate-950/60 text-amber-300 border-amber-400/60'
+                : defaultBadgeStyle;
               return (
                 <button
                   key={tab.id}
@@ -126,11 +130,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <span>{tab.label}</span>
                   {tab.badge && (
                     <span
-                      className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-md border ${
-                        isActive
-                          ? 'bg-slate-950/60 text-amber-300 border-amber-400/60'
-                          : (tab.badgeStyle ?? '')
-                      }`}
+                      className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-md border ${badgeStyle}`}
                     >
                       {tab.badge}
                     </span>

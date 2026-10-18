@@ -38,6 +38,40 @@ function getScenarioBadgeDarkClass(category: SampleInvoice['category']): string 
   return 'bg-amber-500/20 text-amber-300 border-amber-400/40';
 }
 
+function renderFormatIcon(format: SampleInvoice['visualFormat']) {
+  switch (format) {
+    case 'pdf':
+      return <FileText className="h-3 w-3 text-purple-400 shrink-0" />;
+    case 'chat':
+      return <MessageSquare className="h-3 w-3 text-[#00F5D4] shrink-0" />;
+    case 'image':
+      return <ImageIcon className="h-3 w-3 text-pink-400 shrink-0" />;
+    case 'email':
+      return <Mail className="h-3 w-3 text-cyan-400 shrink-0" />;
+  }
+}
+
+function renderCategoryStatusIcon(category: SampleInvoice['category']) {
+  if (category === 'injection' || category === 'duplicate') {
+    return <ShieldAlert className="h-3.5 w-3.5 text-rose-400 shrink-0 mt-0.5" />;
+  }
+  if (category === 'valid_usd' || category === 'valid_latam_cop') {
+    return <CheckCircle2 className="h-3.5 w-3.5 text-[#00F5D4] shrink-0 mt-0.5" />;
+  }
+  return <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />;
+}
+
+function isSubmitDisabled(
+  isLoading: boolean,
+  activeTab: 'samples' | 'upload' | 'text',
+  hasUploadedFile: boolean,
+  customText: string
+): boolean {
+  if (isLoading) return true;
+  if (activeTab === 'upload') return !hasUploadedFile;
+  return !customText.trim();
+}
+
 export const DocumentInput: React.FC<DocumentInputProps> = ({
   selectedSample,
   customText,
@@ -101,27 +135,17 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
         },
         documentHint,
       });
-    } else {
-      if (!customText.trim()) return;
-      onExtract({
-        text: customText,
-        documentHint,
-      });
+      return;
     }
+
+    if (!customText.trim()) return;
+    onExtract({
+      text: customText,
+      documentHint,
+    });
   };
 
-  const renderFormatIcon = (format: SampleInvoice['visualFormat']) => {
-    switch (format) {
-      case 'pdf':
-        return <FileText className="h-3 w-3 text-purple-400 shrink-0" />;
-      case 'chat':
-        return <MessageSquare className="h-3 w-3 text-[#00F5D4] shrink-0" />;
-      case 'image':
-        return <ImageIcon className="h-3 w-3 text-pink-400 shrink-0" />;
-      case 'email':
-        return <Mail className="h-3 w-3 text-cyan-400 shrink-0" />;
-    }
-  };
+  const disabled = isSubmitDisabled(isLoading, activeTab, Boolean(uploadedFile), customText);
 
   return (
     <div className="bg-[#111827]/90 backdrop-blur-md rounded-2xl border border-slate-800/80 shadow-xl overflow-hidden">
@@ -148,8 +172,7 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
                 : 'text-slate-400 hover:text-slate-100'
             }`}
           >
-            <Layers className="h-3 w-3" />
-            9 Casos
+            <Layers className="h-3 w-3" />9 Casos
           </button>
 
           <button
@@ -181,21 +204,19 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
       </div>
 
       <form onSubmit={handleSubmit} className="p-3.5 sm:p-4 space-y-3.5">
-        {/* TAB 1: 9 SCENARIOS IN 1 CLICK (Taller cards, zero title truncation, neon cyan ring when active) */}
         {activeTab === 'samples' && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             {SAMPLE_INVOICES.map((sample) => {
               const isSelected = selectedSample?.id === sample.id;
+              const buttonStyle = isSelected
+                ? 'ring-2 ring-cyan-400 bg-[#1C2841] border-cyan-400/60 shadow-[0_0_18px_rgba(0,245,212,0.2)]'
+                : 'border-slate-800/90 bg-[#161F33] hover:border-purple-500/50 hover:bg-[#1A253D]';
               return (
                 <button
                   key={sample.id}
                   type="button"
                   onClick={() => handleSampleClick(sample)}
-                  className={`text-left p-3 min-h-[96px] rounded-xl border text-xs transition-all flex flex-col justify-between gap-2 cursor-pointer relative ${
-                    isSelected
-                      ? 'ring-2 ring-cyan-400 bg-[#1C2841] border-cyan-400/60 shadow-[0_0_18px_rgba(0,245,212,0.2)]'
-                      : 'border-slate-800/90 bg-[#161F33] hover:border-purple-500/50 hover:bg-[#1A253D]'
-                  }`}
+                  className={`text-left p-3 min-h-[96px] rounded-xl border text-xs transition-all flex flex-col justify-between gap-2 cursor-pointer relative ${buttonStyle}`}
                 >
                   <div className="flex items-center justify-between gap-1.5 w-full">
                     <span
@@ -215,19 +236,7 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
                     <span className="font-bold text-[11px] text-slate-100 leading-snug break-words">
                       {sample.title}
                     </span>
-                    {(sample.category === 'injection' || sample.category === 'duplicate') && (
-                      <ShieldAlert className="h-3.5 w-3.5 text-rose-400 shrink-0 mt-0.5" />
-                    )}
-                    {(sample.category === 'unlisted_vendor' ||
-                      sample.category === 'agreement_mismatch' ||
-                      sample.category === 'exceeds_limit' ||
-                      sample.category === 'exceeds_budget' ||
-                      sample.category === 'bank_account_mismatch') && (
-                      <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
-                    )}
-                    {(sample.category === 'valid_usd' || sample.category === 'valid_latam_cop') && (
-                      <CheckCircle2 className="h-3.5 w-3.5 text-[#00F5D4] shrink-0 mt-0.5" />
-                    )}
+                    {renderCategoryStatusIcon(sample.category)}
                   </div>
                 </button>
               );
@@ -235,7 +244,6 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
           </div>
         )}
 
-        {/* TAB 2: FILE UPLOAD */}
         {activeTab === 'upload' && (
           <div className="space-y-3">
             <input
@@ -301,7 +309,6 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
           </div>
         )}
 
-        {/* TAB 3: RAW TEXT / EMAIL / CHAT */}
         {activeTab === 'text' && (
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs text-slate-300">
@@ -324,7 +331,6 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
           </div>
         )}
 
-        {/* Action Bar */}
         <div className="pt-2.5 flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-slate-800/80">
           <span className="text-[11px] text-slate-400">
             Haz clic en cualquier escenario o presiona el botón para escanear:
@@ -332,11 +338,7 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
 
           <button
             type="submit"
-            disabled={
-              isLoading ||
-              (activeTab === 'upload' && !uploadedFile) ||
-              (activeTab !== 'upload' && !customText.trim())
-            }
+            disabled={disabled}
             className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 hover:from-purple-500 hover:to-cyan-400 text-white font-semibold shadow-lg shadow-cyan-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
           >
             {isLoading ? (
