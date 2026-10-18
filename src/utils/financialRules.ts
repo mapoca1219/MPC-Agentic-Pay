@@ -198,6 +198,7 @@ export interface CorporatePolicyConfig {
   maxMonthlyBudgetUsd: number;
   currentMonthSpentUsd: number;
   allowedCurrencies: string[];
+  fxRates?: Record<string, number>;
   whitelistedVendors: WhitelistedVendorRule[];
   alreadyPaidInvoiceIds: string[];
 }
@@ -209,6 +210,7 @@ export const DEFAULT_CORPORATE_POLICY: CorporatePolicyConfig = {
   maxMonthlyBudgetUsd: 3500.0,
   currentMonthSpentUsd: 420.0, // $120 AWS + $300 Contractor = $420 USD spent, $3,080 USD remaining
   allowedCurrencies: ['USD', 'COP', 'MXN', 'ARS', 'BRL', 'EUR'],
+  fxRates: { ...FX_RATES_PER_USD },
   whitelistedVendors: [
     {
       id: 'vendor-aws',
@@ -315,13 +317,14 @@ export function doesBankAccountMatch(
  */
 export function convertToUsd(
   amount: number | null | undefined,
-  currency: string | null | undefined
+  currency: string | null | undefined,
+  customFxRates: Record<string, number> = FX_RATES_PER_USD
 ): { amountUsd: number; rateUsed: number; isSupportedCurrency: boolean } {
   if (amount === null || amount === undefined || Number.isNaN(amount)) {
     return { amountUsd: 0, rateUsed: 1, isSupportedCurrency: false };
   }
   const cleanCurrency = (currency || 'USD').toUpperCase().trim();
-  const rate = FX_RATES_PER_USD[cleanCurrency];
+  const rate = customFxRates[cleanCurrency] ?? FX_RATES_PER_USD[cleanCurrency];
   if (!rate) {
     return { amountUsd: Number(amount.toFixed(2)), rateUsed: 1, isSupportedCurrency: false };
   }
@@ -716,13 +719,17 @@ export function evaluateGovernanceDecision(
   result: ExtractionResult,
   policy: CorporatePolicyConfig = DEFAULT_CORPORATE_POLICY
 ): GovernanceDecision {
-  if (result.governanceDecision) {
+  if (result.governanceDecision?.humanApproval) {
     return result.governanceDecision;
   }
 
   const currency = (result.invoice.currency || 'USD').toUpperCase();
   const rawTotal = result.invoice.totalAmount ?? 0;
-  const { amountUsd, rateUsed } = convertToUsd(rawTotal, currency);
+  const { amountUsd, rateUsed } = convertToUsd(
+    rawTotal,
+    currency,
+    policy.fxRates ?? FX_RATES_PER_USD
+  );
   const urgency = classifyPaymentUrgency(result.invoice.dueDate);
   const matchedVendor = findWhitelistedVendor(result.vendor.name, policy);
   const recommendedRail = getRecommendedBlinkaRail(currency);
@@ -992,13 +999,14 @@ export function applyHumanCfoDecision(
   result: ExtractionResult,
   action: 'APPROVE' | 'REJECT' | 'RESET',
   reviewerName = 'CFO Carolina Martínez (Dirección Financiera)',
-  channel: 'Slack Finance Bot' | 'WhatsApp CFO Alert' = 'Slack Finance Bot'
+  channel: 'Slack Finance Bot' | 'WhatsApp CFO Alert' = 'Slack Finance Bot',
+  policy: CorporatePolicyConfig = DEFAULT_CORPORATE_POLICY
 ): ExtractionResult {
   const clone: ExtractionResult = {
     ...result,
     governanceDecision: undefined,
   };
-  const baseDecision = evaluateGovernanceDecision(clone);
+  const baseDecision = evaluateGovernanceDecision(clone, policy);
 
   if (action === 'RESET') {
     clone.governanceDecision = baseDecision;

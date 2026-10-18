@@ -3,18 +3,23 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState } from 'react';
-import { Header } from './components/Header';
+import { useState, useRef, useEffect } from 'react';
+import { Header, type AppViewTab } from './components/Header';
 import { RulesBanner } from './components/RulesBanner';
 import { DocumentInput } from './components/DocumentInput';
 import { ExtractionResults } from './components/ExtractionResults';
 import { ExtractionHistory, type HistoryItem } from './components/ExtractionHistory';
 import { VisualDocumentPreview } from './components/VisualDocumentPreview';
 import { ChallengeSuccessKPIs } from './components/ChallengeSuccessKPIs';
+import { KanbanDecisionBoard } from './components/KanbanDecisionBoard';
+import { PolicyRulesPanel } from './components/PolicyRulesPanel';
 import { SAMPLE_INVOICES, type SampleInvoice } from './data/sampleInvoices';
 import {
   parseDocumentDeterministically,
   applyHumanCfoDecision,
+  evaluateGovernanceDecision,
+  DEFAULT_CORPORATE_POLICY,
+  type CorporatePolicyConfig,
   type ExtractionResult,
 } from './utils/financialRules';
 import { AlertCircle } from 'lucide-react';
@@ -30,19 +35,58 @@ function buildInitialHistory(): HistoryItem[] {
 }
 
 export default function App() {
+  const [activeView, setActiveView] = useState<AppViewTab>('simulator');
+  const [policy, setPolicy] = useState<CorporatePolicyConfig>(DEFAULT_CORPORATE_POLICY);
   const [selectedSample, setSelectedSample] = useState<SampleInvoice | null>(SAMPLE_INVOICES[0]);
   const [customText, setCustomText] = useState<string>(SAMPLE_INVOICES[0].rawText);
-  const [activeResult, setActiveResult] = useState<ExtractionResult>(SAMPLE_INVOICES[0].expectedResult);
+  const [activeResult, setActiveResult] = useState<ExtractionResult>(
+    SAMPLE_INVOICES[0].expectedResult
+  );
   const [uploadedPreview, setUploadedPreview] = useState<{ url?: string; filename?: string }>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isScanning, setIsScanning] = useState<boolean>(false);
+  const [scanStep, setScanStep] = useState<number>(5);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>(buildInitialHistory);
+
+  const scanTimerRef = useRef<number | null>(null);
+
+  const triggerStepByStepScan = () => {
+    if (scanTimerRef.current !== null) {
+      window.clearInterval(scanTimerRef.current);
+    }
+    setIsScanning(true);
+    setScanStep(1);
+    let current = 1;
+    scanTimerRef.current = window.setInterval(() => {
+      current += 1;
+      if (current <= 5) {
+        setScanStep(current);
+      } else {
+        if (scanTimerRef.current !== null) {
+          window.clearInterval(scanTimerRef.current);
+          scanTimerRef.current = null;
+        }
+        setIsScanning(false);
+        setScanStep(5);
+      }
+    }, 300); // 5 steps * 300ms = 1.5 seconds progressive scan
+  };
+
+  useEffect(() => {
+    return () => {
+      if (scanTimerRef.current !== null) {
+        window.clearInterval(scanTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleSelectSample = (sample: SampleInvoice) => {
     setSelectedSample(sample);
     setCustomText(sample.rawText);
     setUploadedPreview({});
     setErrorMessage(null);
+    triggerStepByStepScan();
 
     const existingInHistory = history.find((item) => item.sampleId === sample.id);
     if (existingInHistory) {
@@ -65,6 +109,9 @@ export default function App() {
 
   const handleSelectHistoryItem = (item: HistoryItem) => {
     setActiveResult(item.result);
+    setActiveView('simulator');
+    triggerStepByStepScan();
+
     if (item.sampleId) {
       const matched = SAMPLE_INVOICES.find((s) => s.id === item.sampleId);
       if (matched) {
@@ -87,7 +134,8 @@ export default function App() {
       activeResult,
       action,
       'CFO Carolina Martínez (Dirección Financiera)',
-      channel
+      channel,
+      policy
     );
     setActiveResult(updated);
     setHistory((prev) =>
@@ -115,7 +163,8 @@ export default function App() {
           item.result,
           action,
           'CFO Carolina Martínez (Dirección Financiera)',
-          channel
+          channel,
+          policy
         );
         if (
           item.result === activeResult ||
@@ -135,6 +184,7 @@ export default function App() {
   }) => {
     setIsLoading(true);
     setErrorMessage(null);
+    triggerStepByStepScan();
 
     if (payload.fileData) {
       setUploadedPreview({
@@ -169,7 +219,6 @@ export default function App() {
 
       setHistory((prev) => [newItem, ...prev.slice(0, 14)]);
     } catch {
-      // Seamless local deterministic fallback if backend is offline or unreachable
       const fallbackExtracted = parseDocumentDeterministically(
         payload.text || payload.fileData?.filename || customText,
         payload.documentHint
@@ -190,22 +239,33 @@ export default function App() {
     }
   };
 
+  // Compute live KPI metrics for the persistent SaaS Header
+  const evaluatedHistory = history.map((item) => evaluateGovernanceDecision(item.result, policy));
+  const totalDocs = evaluatedHistory.length || 1;
+  const paidDocs = evaluatedHistory.filter((d) => d.decisionCode === 'PAID');
+  const rejectedDocs = evaluatedHistory.filter((d) => d.decisionCode === 'REJECTED');
+  const escalatedDocs = evaluatedHistory.filter((d) => d.decisionCode === 'ESCALATED');
+  const autonomyPercent = Math.round(((paidDocs.length + rejectedDocs.length) / totalDocs) * 100);
+  const totalPaidUsd = paidDocs.reduce((acc, cur) => acc + cur.amountUsd, 0);
+  const remainingBudgetUsd = Math.max(
+    0,
+    Number((policy.maxMonthlyBudgetUsd - totalPaidUsd).toFixed(2))
+  );
+
   return (
     <div className="min-h-screen bg-slate-100/80 text-slate-900 font-sans antialiased flex flex-col selection:bg-indigo-500 selection:text-white">
-      <Header />
+      <Header
+        activeView={activeView}
+        onSelectView={setActiveView}
+        autonomyPercent={autonomyPercent}
+        escalatedCount={escalatedDocs.length}
+        remainingBudgetUsd={remainingBudgetUsd}
+      />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* Real-Time Challenge Success KPIs (Autonomy, Security, Reconciliation + FX Rates) */}
-        <section aria-label="Indicadores de Éxito del Reto Blinka">
-          <ChallengeSuccessKPIs history={history} />
-        </section>
-
-        {/* Governance Rules Ribbon */}
-        <RulesBanner />
-
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-4">
         {/* Error notification if any */}
         {errorMessage && (
-          <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center justify-between gap-3 animate-in fade-in">
+          <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
               <span>{errorMessage}</span>
@@ -220,63 +280,96 @@ export default function App() {
           </div>
         )}
 
-        {/* 1-Click Test Invoice Generator Panel */}
-        <section aria-label="Generador de Facturas de Prueba en 1 Clic">
-          <DocumentInput
-            selectedSample={selectedSample}
-            customText={customText}
-            onCustomTextChange={setCustomText}
-            onSelectSample={handleSelectSample}
-            onExtract={handleExtract}
-            isLoading={isLoading}
-          />
-        </section>
+        {/* VISTA 1: ⚡ AGENTE EN VIVO (SIMULADOR EN 2 COLUMNAS SIN SCROLL LARGO) */}
+        {activeView === 'simulator' && (
+          <section
+            aria-label="Agente en Vivo: Simulador y Visor Interactivo"
+            className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start"
+          >
+            {/* Columna Izquierda: Selector de 9 Casos / Subida + Vista Previa del Documento Original */}
+            <div className="lg:col-span-5 space-y-3.5">
+              <DocumentInput
+                selectedSample={selectedSample}
+                customText={customText}
+                onCustomTextChange={setCustomText}
+                onSelectSample={handleSelectSample}
+                onExtract={handleExtract}
+                isLoading={isLoading}
+              />
 
-        {/* Side-by-Side Visual Document Preview & Extracted JSON + Decision */}
-        <section
-          aria-label="Vista en Paralelo: Documento Original, JSON Extraído y Decisión"
-          className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch"
-        >
-          <div className="lg:col-span-5 flex flex-col">
-            <VisualDocumentPreview
-              sample={selectedSample}
-              rawText={customText}
-              onRawTextChange={setCustomText}
-              extractionResult={activeResult}
-              uploadedPreviewUrl={uploadedPreview.url}
-              uploadedFilename={uploadedPreview.filename}
+              <VisualDocumentPreview
+                sample={selectedSample}
+                rawText={customText}
+                onRawTextChange={setCustomText}
+                extractionResult={activeResult}
+                uploadedPreviewUrl={uploadedPreview.url}
+                uploadedFilename={uploadedPreview.filename}
+              />
+            </div>
+
+            {/* Columna Derecha: Mascota Blinky + Escaneo Paso a Paso + Veredicto en Español + Acordeón Técnico */}
+            <div className="lg:col-span-7">
+              <ExtractionResults
+                data={activeResult}
+                policy={policy}
+                isScanning={isScanning || isLoading}
+                scanStep={scanStep}
+                onCfoDecision={handleActiveCfoDecision}
+              />
+            </div>
+          </section>
+        )}
+
+        {/* VISTA 2: 📋 TABLERO DE DECISIONES (KANBAN 3 COLUMNAS) */}
+        {activeView === 'kanban' && (
+          <section aria-label="Tablero de Decisiones Kanban">
+            <KanbanDecisionBoard
+              history={history}
+              policy={policy}
+              onSelectForSimulator={handleSelectHistoryItem}
+              onCfoDecisionForItem={handleHistoryItemCfoDecision}
+              onResetAllSamples={() => setHistory(buildInitialHistory())}
             />
-          </div>
+          </section>
+        )}
 
-          <div className="lg:col-span-7 flex flex-col">
-            <ExtractionResults
-              data={activeResult}
-              onCfoDecision={handleActiveCfoDecision}
+        {/* VISTA 3: ⚙️ REGLAS Y PRESUPUESTO (SLIDERS + TASAS + LISTA BLANCA EDITABLE) */}
+        {activeView === 'rules' && (
+          <section aria-label="Configuración de Reglas y Presupuesto" className="space-y-4">
+            <PolicyRulesPanel
+              policy={policy}
+              onUpdatePolicy={setPolicy}
+              onResetPolicy={() => setPolicy(DEFAULT_CORPORATE_POLICY)}
             />
-          </div>
-        </section>
+            <RulesBanner />
+          </section>
+        )}
 
-        {/* Decision Tray & Accounting Audit Log Exporter (CSV / JSON) */}
-        <section aria-label="Bandeja de Decisiones y Exportación de Auditoría Contable">
-          <ExtractionHistory
-            history={history}
-            activeId={
-              history.find((h) => h.result === activeResult)?.id ||
-              history.find((h) => h.sampleId === selectedSample?.id)?.id
-            }
-            onSelect={handleSelectHistoryItem}
-            onClear={() => setHistory([])}
-            onLoadAllSamples={() => setHistory(buildInitialHistory())}
-            onCfoDecisionForItem={handleHistoryItemCfoDecision}
-          />
-        </section>
+        {/* VISTA 4: 📊 CONCILIACIÓN MENSUAL (KPIS + TABLA Y EXPORTACIÓN CSV / EXCEL) */}
+        {activeView === 'reconciliation' && (
+          <section aria-label="Conciliación Mensual y Exportación Contable" className="space-y-4">
+            <ChallengeSuccessKPIs history={history} policy={policy} />
+            <ExtractionHistory
+              history={history}
+              policy={policy}
+              activeId={
+                history.find((h) => h.result === activeResult)?.id ||
+                history.find((h) => h.sampleId === selectedSample?.id)?.id
+              }
+              onSelect={handleSelectHistoryItem}
+              onClear={() => setHistory([])}
+              onLoadAllSamples={() => setHistory(buildInitialHistory())}
+              onCfoDecisionForItem={handleHistoryItemCfoDecision}
+            />
+          </section>
+        )}
       </main>
 
-      <footer className="border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-500">
+      <footer className="border-t border-slate-200 bg-white py-3 text-center text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>Blinka Corporate Payment Governance System • Agente Extractor Financiero</span>
+          <span>Blinka Sentinel AI • Sistema de Gobernanza de Pagos Corporativos</span>
           <span className="font-mono text-[11px] text-slate-400">
-            Smart Rail Routing • Validación Cuenta Histórica • BlinkaPaymentIntent • Aprobación CFO Slack/WhatsApp
+            🦊 Blinky Guardián • Smart Rail Routing • Validación Cuenta Histórica • Aprobación CFO
           </span>
         </div>
       </footer>

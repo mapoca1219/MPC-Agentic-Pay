@@ -2,7 +2,6 @@ import React, { useState, useRef } from 'react';
 import {
   FileText,
   Upload,
-  Sparkles,
   Layers,
   AlertTriangle,
   CheckCircle2,
@@ -104,80 +103,77 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
   const renderFormatIcon = (format: SampleInvoice['visualFormat']) => {
     switch (format) {
       case 'pdf':
-        return <FileText className="h-3.5 w-3.5 text-indigo-600 shrink-0" />;
+        return <FileText className="h-3 w-3 text-indigo-600 shrink-0" />;
       case 'chat':
-        return <MessageSquare className="h-3.5 w-3.5 text-teal-600 shrink-0" />;
+        return <MessageSquare className="h-3 w-3 text-teal-600 shrink-0" />;
       case 'image':
-        return <ImageIcon className="h-3.5 w-3.5 text-purple-600 shrink-0" />;
+        return <ImageIcon className="h-3 w-3 text-purple-600 shrink-0" />;
       case 'email':
-        return <Mail className="h-3.5 w-3.5 text-sky-600 shrink-0" />;
+        return <Mail className="h-3 w-3 text-sky-600 shrink-0" />;
     }
   };
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
       {/* Header & Mode Switcher */}
-      <div className="border-b border-slate-200 bg-slate-50/80 p-3 sm:px-5 flex items-center justify-between flex-wrap gap-3">
+      <div className="border-b border-slate-200 bg-slate-50/80 p-3 sm:px-4 flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
-          <div className="h-7 w-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-sm">
-            <Zap className="h-4 w-4" />
+          <div className="h-6 w-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+            <Zap className="h-3.5 w-3.5" />
           </div>
           <div>
-            <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 tracking-tight">
-              Simulador Multicanal en 1 Clic (8 Casos Oficiales Reto Blinka: PDF / Imagen / Correo / Chat)
+            <h3 className="text-xs font-extrabold text-slate-900 tracking-tight">
+              Simulador de Entrada Multicanal (9 Escenarios en 1 Clic)
             </h3>
-            <p className="text-[11px] text-slate-500">
-              Selecciona cualquiera de los 8 escenarios (2 normales + 6 casos trampa) para ver el documento original junto al JSON y la decisión de Finanzas
-            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1 bg-slate-200/75 p-1 rounded-xl">
+        <div className="flex items-center gap-1 bg-slate-200/75 p-0.5 rounded-xl">
           <button
             type="button"
             onClick={() => setActiveTab('samples')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
               activeTab === 'samples'
                 ? 'bg-white text-indigo-700 shadow-sm'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <Layers className="h-3.5 w-3.5" />
-            8 Escenarios del Reto
+            <Layers className="h-3 w-3" />
+            9 Casos
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('upload')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
               activeTab === 'upload'
                 ? 'bg-white text-indigo-700 shadow-sm'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <Upload className="h-3.5 w-3.5" />
-            Subir PDF / Imagen
+            <Upload className="h-3 w-3" />
+            Subir Archivo
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('text')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
               activeTab === 'text'
                 ? 'bg-white text-indigo-700 shadow-sm'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <FileText className="h-3.5 w-3.5" />
+            <FileText className="h-3 w-3" />
             Texto Libre
           </button>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="p-4 sm:p-5 space-y-4">
-        {/* TAB 1: 8 SCENARIOS IN 1 CLICK */}
+      <form onSubmit={handleSubmit} className="p-3.5 space-y-3">
+        {/* TAB 1: 9 SCENARIOS IN 1 CLICK */}
         {activeTab === 'samples' && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {SAMPLE_INVOICES.map((sample) => {
               const isSelected = selectedSample?.id === sample.id;
               return (
@@ -185,42 +181,37 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
                   key={sample.id}
                   type="button"
                   onClick={() => handleSampleClick(sample)}
-                  className={`text-left p-3 rounded-xl border text-xs transition-all flex flex-col justify-between gap-2 cursor-pointer relative ${
+                  className={`text-left p-2.5 rounded-xl border text-xs transition-all flex flex-col justify-between gap-1.5 cursor-pointer relative ${
                     isSelected
-                      ? 'border-indigo-600 bg-indigo-50/50 shadow-sm ring-2 ring-indigo-500/20'
+                      ? 'border-indigo-600 bg-indigo-50/60 shadow-sm ring-2 ring-indigo-500/20'
                       : 'border-slate-200 bg-white hover:border-indigo-300 hover:bg-slate-50/60'
                   }`}
                 >
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between gap-1 flex-wrap">
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border ${sample.tagColor}`}>
-                        {sample.tag}
-                      </span>
-                      <span className="inline-flex items-center gap-1 text-[10px] font-mono font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
-                        {renderFormatIcon(sample.visualFormat)}
-                        {sample.formatLabel}
-                      </span>
-                    </div>
-                    <h4 className="font-bold text-slate-900 leading-snug flex items-center justify-between gap-1">
-                      <span>{sample.title}</span>
-                      {(sample.category === 'injection' || sample.category === 'duplicate') && (
-                        <ShieldAlert className="h-4 w-4 text-red-500 shrink-0" />
-                      )}
-                      {(sample.category === 'unlisted_vendor' ||
-                        sample.category === 'agreement_mismatch' ||
-                        sample.category === 'exceeds_limit' ||
-                        sample.category === 'exceeds_budget' ||
-                        sample.category === 'bank_account_mismatch') && (
-                        <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
-                      )}
-                      {(sample.category === 'valid_usd' || sample.category === 'valid_latam_cop') && (
-                        <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-                      )}
-                    </h4>
+                  <div className="flex items-center justify-between gap-1">
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border truncate ${sample.tagColor}`}>
+                      {sample.tag}
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-[9px] font-mono font-semibold text-slate-600 bg-slate-100 px-1 py-0.5 rounded border border-slate-200 shrink-0">
+                      {renderFormatIcon(sample.visualFormat)}
+                      {sample.visualFormat.toUpperCase()}
+                    </span>
                   </div>
-                  <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
-                    {sample.description}
-                  </p>
+                  <h4 className="font-bold text-[11px] text-slate-900 leading-snug flex items-center justify-between gap-1">
+                    <span className="line-clamp-2">{sample.title}</span>
+                    {(sample.category === 'injection' || sample.category === 'duplicate') && (
+                      <ShieldAlert className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                    )}
+                    {(sample.category === 'unlisted_vendor' ||
+                      sample.category === 'agreement_mismatch' ||
+                      sample.category === 'exceeds_limit' ||
+                      sample.category === 'exceeds_budget' ||
+                      sample.category === 'bank_account_mismatch') && (
+                      <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                    )}
+                    {(sample.category === 'valid_usd' || sample.category === 'valid_latam_cop') && (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                    )}
+                  </h4>
                 </button>
               );
             })}
@@ -229,7 +220,7 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
 
         {/* TAB 2: FILE UPLOAD */}
         {activeTab === 'upload' && (
-          <div className="space-y-4">
+          <div className="space-y-3">
             <input
               ref={fileInputRef}
               type="file"
@@ -242,29 +233,29 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
             {!uploadedFile ? (
               <label
                 htmlFor="file-upload-input"
-                className="border-2 border-dashed border-slate-300 hover:border-indigo-500 hover:bg-indigo-50/20 rounded-2xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all group"
+                className="border-2 border-dashed border-slate-300 hover:border-indigo-500 hover:bg-indigo-50/20 rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all group"
               >
-                <div className="h-14 w-14 rounded-2xl bg-indigo-50 group-hover:bg-indigo-100 flex items-center justify-center text-indigo-600 mb-3 transition-colors">
-                  <Upload className="h-7 w-7" />
+                <div className="h-12 w-12 rounded-2xl bg-indigo-50 group-hover:bg-indigo-100 flex items-center justify-center text-indigo-600 mb-2 transition-colors">
+                  <Upload className="h-6 w-6" />
                 </div>
-                <h4 className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
-                  Haz clic para seleccionar o arrastra una factura real
+                <h4 className="text-xs font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                  Haz clic para subir o arrastra una factura (PDF / Imagen)
                 </h4>
-                <p className="text-xs text-slate-500 mt-1 max-w-sm">
-                  Formatos soportados: Facturas en PDF, imágenes PNG, JPEG o WebP (hasta 25MB).
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Blinka Sentinel AI extraerá los datos y verificará todas las reglas de pago.
                 </p>
               </label>
             ) : (
-              <div className="border border-slate-200 rounded-2xl p-4 bg-slate-50 flex items-center justify-between gap-4">
+              <div className="border border-slate-200 rounded-2xl p-3 bg-slate-50 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   {uploadedFile.previewUrl ? (
                     <img
                       src={uploadedFile.previewUrl}
                       alt="Vista previa"
-                      className="h-16 w-16 object-cover rounded-xl border border-slate-200"
+                      className="h-12 w-12 object-cover rounded-xl border border-slate-200"
                     />
                   ) : (
-                    <div className="h-16 w-16 rounded-xl bg-red-100 border border-red-200 flex items-center justify-center text-red-600 shrink-0 font-bold text-xs uppercase">
+                    <div className="h-12 w-12 rounded-xl bg-red-100 border border-red-200 flex items-center justify-center text-red-600 shrink-0 font-bold text-xs uppercase">
                       PDF
                     </div>
                   )}
@@ -272,12 +263,9 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
                     <p className="text-xs font-bold text-slate-900 truncate">
                       {uploadedFile.file.name}
                     </p>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      {(uploadedFile.file.size / 1024).toFixed(1)} KB • {uploadedFile.file.type || 'Documento'}
-                    </p>
                     <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md mt-1 border border-emerald-200">
                       <FileCheck2 className="h-3 w-3" />
-                      Listo para procesar con visión multimodal Gemini
+                      Listo para auditoría con Blinka Sentinel AI
                     </span>
                   </div>
                 </div>
@@ -285,11 +273,11 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
                 <button
                   type="button"
                   onClick={handleRemoveFile}
-                  className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                   title="Eliminar archivo"
                   aria-label="Eliminar archivo"
                 >
-                  <X className="h-5 w-5" />
+                  <X className="h-4 w-4" />
                 </button>
               </div>
             )}
@@ -298,13 +286,12 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
 
         {/* TAB 3: RAW TEXT / EMAIL / CHAT */}
         {activeTab === 'text' && (
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs text-slate-600">
-              <span className="font-semibold text-slate-700 flex items-center gap-1.5">
-                <MessageSquare className="h-3.5 w-3.5 text-indigo-600" />
-                Pega o modifica cualquier factura, correo o mensaje de cobro para probar el extractor en vivo:
+              <span className="font-semibold text-slate-700 text-[11px]">
+                Pega o edita cualquier correo, factura o mensaje de WhatsApp:
               </span>
-              <span className="text-slate-400 font-mono text-[11px]">
+              <span className="text-slate-400 font-mono text-[10px]">
                 {customText.length} caracteres
               </span>
             </div>
@@ -312,38 +299,36 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
               aria-label="Texto de factura o mensaje de cobro"
               value={customText}
               onChange={(e) => onCustomTextChange(e.target.value)}
-              rows={7}
-              className="w-full rounded-xl border border-slate-300 bg-slate-50/60 p-3 font-mono text-xs text-slate-800 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all resize-y leading-relaxed"
-              placeholder="Ejemplo: 'Hola equipo, les paso la cuenta por los servicios de diseño web por $500 USD a Bancolombia...'"
+              rows={5}
+              className="w-full rounded-xl border border-slate-300 bg-slate-50/60 p-2.5 font-mono text-xs text-slate-800 focus:bg-white focus:border-indigo-500 transition-all resize-y leading-relaxed"
+              placeholder="Ejemplo: 'Hola equipo, les paso la cuenta de cobro por $300 USD...'"
               required
             />
           </div>
         )}
 
         {/* Action Bar */}
-        <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-100">
-          <div className="text-[11px] text-slate-500 flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span>
-              Al hacer clic en un escenario se carga al instante su vista previa, hash SHA-256, JSON y decisión. También puedes re-procesar en vivo con Gemini AI:
-            </span>
-          </div>
+        <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-slate-100">
+          <span className="text-[11px] text-slate-500">
+            Haz clic en cualquier escenario o presiona el botón para escanear:
+          </span>
 
           <button
             type="submit"
-            disabled={isLoading || (activeTab === 'upload' && !uploadedFile) || (activeTab !== 'upload' && !customText.trim())}
-            className="w-full sm:w-auto px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-indigo-200 transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0"
+            disabled={
+              isLoading ||
+              (activeTab === 'upload' && !uploadedFile) ||
+              (activeTab !== 'upload' && !customText.trim())
+            }
+            className="w-full sm:w-auto px-4 py-2 rounded-xl font-bold text-xs text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
           >
             {isLoading ? (
               <>
-                <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                <span>Procesando con Gemini AI + SHA-256...</span>
+                <div className="h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span>⚡ Blinky está auditando la factura...</span>
               </>
             ) : (
-              <>
-                <Sparkles className="h-4 w-4" />
-                <span>Ejecutar Extracción en Vivo (Gemini AI)</span>
-              </>
+              <span>⚡ Analizar Documento con el Agente</span>
             )}
           </button>
         </div>

@@ -14,16 +14,21 @@ import {
   DEFAULT_CORPORATE_POLICY,
   FX_RATES_PER_USD,
   evaluateGovernanceDecision,
+  type CorporatePolicyConfig,
 } from '../utils/financialRules';
 import type { HistoryItem } from './ExtractionHistory';
 
 interface ChallengeSuccessKPIsProps {
   history: HistoryItem[];
+  policy?: CorporatePolicyConfig;
 }
 
-export const ChallengeSuccessKPIs: React.FC<ChallengeSuccessKPIsProps> = ({ history }) => {
+export const ChallengeSuccessKPIs: React.FC<ChallengeSuccessKPIsProps> = ({
+  history,
+  policy = DEFAULT_CORPORATE_POLICY,
+}) => {
   const decisions = history.map((item, idx) => {
-    const d = evaluateGovernanceDecision(item.result);
+    const d = evaluateGovernanceDecision(item.result, policy);
     const origAmount = item.result.invoice.totalAmount ?? 0;
     const origCurrency = item.result.invoice.currency || 'USD';
     return {
@@ -94,9 +99,10 @@ export const ChallengeSuccessKPIs: React.FC<ChallengeSuccessKPIsProps> = ({ hist
     URL.revokeObjectURL(url);
   };
 
+  const fxRates = policy.fxRates ?? FX_RATES_PER_USD;
   const remainingBudgetUsd = Math.max(
     0,
-    Number((DEFAULT_CORPORATE_POLICY.maxMonthlyBudgetUsd - totalPaidUsd).toFixed(2))
+    Number((policy.maxMonthlyBudgetUsd - totalPaidUsd).toFixed(2))
   );
 
   return (
@@ -155,7 +161,7 @@ export const ChallengeSuccessKPIs: React.FC<ChallengeSuccessKPIsProps> = ({ hist
           </div>
 
           <div className="flex items-center justify-between text-[11px] pt-2 border-t border-slate-100 text-slate-600">
-            <span>Límite Autónomo: <strong className="font-mono text-slate-900">${DEFAULT_CORPORATE_POLICY.maxAmountWithoutApprovalUsd} USD</strong></span>
+            <span>Límite Autónomo: <strong className="font-mono text-slate-900">${policy.maxAmountWithoutApprovalUsd} USD</strong></span>
             <span>Saldo Presupuesto: <strong className="font-mono text-emerald-700">${remainingBudgetUsd.toLocaleString('en-US')} USD</strong></span>
           </div>
         </div>
@@ -204,25 +210,25 @@ export const ChallengeSuccessKPIs: React.FC<ChallengeSuccessKPIsProps> = ({ hist
             Motor Multimoneda (<code className="font-mono text-indigo-700">policyEngine</code> EE. UU. → LATAM):
           </span>
           <span className="text-slate-500 font-normal hidden md:inline">
-            Normaliza toda factura a USD antes de validar acuerdo, límite ($500 USD) y presupuesto ($3,500 USD).
+            Normaliza toda factura a USD antes de validar acuerdo, límite (${policy.maxAmountWithoutApprovalUsd} USD) y presupuesto (${policy.maxMonthlyBudgetUsd} USD).
           </span>
         </div>
 
         <div className="flex items-center flex-wrap gap-1.5 font-mono text-[11px]">
           <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
-            1 USD = <strong>{FX_RATES_PER_USD.COP.toLocaleString('en-US')} COP</strong>
+            1 USD = <strong>{fxRates.COP.toLocaleString('en-US')} COP</strong>
           </span>
           <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
-            1 USD = <strong>{FX_RATES_PER_USD.MXN} MXN</strong>
+            1 USD = <strong>{fxRates.MXN} MXN</strong>
           </span>
           <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
-            1 USD = <strong>{FX_RATES_PER_USD.EUR} EUR</strong>
+            1 USD = <strong>{fxRates.EUR} EUR</strong>
           </span>
           <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
-            1 USD = <strong>{FX_RATES_PER_USD.ARS} ARS</strong>
+            1 USD = <strong>{fxRates.ARS} ARS</strong>
           </span>
           <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
-            1 USD = <strong>{FX_RATES_PER_USD.BRL} BRL</strong>
+            1 USD = <strong>{fxRates.BRL} BRL</strong>
           </span>
         </div>
       </div>

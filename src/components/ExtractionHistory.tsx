@@ -23,6 +23,8 @@ import {
   evaluateGovernanceDecision,
   computeDocumentSha256,
   buildBlinkaPaymentIntentPayload,
+  DEFAULT_CORPORATE_POLICY,
+  type CorporatePolicyConfig,
   type ExtractionResult,
 } from '../utils/financialRules';
 
@@ -36,6 +38,7 @@ export interface HistoryItem {
 
 interface ExtractionHistoryProps {
   history: HistoryItem[];
+  policy?: CorporatePolicyConfig;
   onSelect: (item: HistoryItem) => void;
   onClear: () => void;
   onLoadAllSamples: () => void;
@@ -49,18 +52,19 @@ interface ExtractionHistoryProps {
 
 export const ExtractionHistory: React.FC<ExtractionHistoryProps> = ({
   history,
+  policy = DEFAULT_CORPORATE_POLICY,
   onSelect,
   onClear,
   onLoadAllSamples,
   onCfoDecisionForItem,
   activeId,
 }) => {
-  const [showTablePreview, setShowTablePreview] = useState<boolean>(false);
+  const [showTablePreview, setShowTablePreview] = useState<boolean>(true);
   const [expandedPayloadId, setExpandedPayloadId] = useState<string | null>(null);
 
   const buildAccountingRows = () => {
     return history.map((item, idx) => {
-      const decision = evaluateGovernanceDecision(item.result);
+      const decision = evaluateGovernanceDecision(item.result, policy);
       const payload = buildBlinkaPaymentIntentPayload(item.result, decision);
       const fallbackHash = computeDocumentSha256(
         item.result.documentMetadata.rawTextExcerpt || item.title
@@ -347,7 +351,7 @@ export const ExtractionHistory: React.FC<ExtractionHistoryProps> = ({
           {history.map((item) => {
             const isActive = item.id === activeId;
             const isAttack = item.result.securityAudit.promptInjectionDetected;
-            const decision = evaluateGovernanceDecision(item.result);
+            const decision = evaluateGovernanceDecision(item.result, policy);
             const paymentPayload = buildBlinkaPaymentIntentPayload(item.result, decision);
             const isPayloadOpen = expandedPayloadId === item.id;
             const fallbackHash = computeDocumentSha256(
