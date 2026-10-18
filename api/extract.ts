@@ -5,7 +5,7 @@ import {
   isValidExtractionFile,
   MAX_EXTRACTION_FILE_BYTES,
   SUPPORTED_EXTRACTION_MIME_TYPES,
-} from '../src/utils/extractionSecurity';
+} from '../src/utils/extractionSecurity.js';
 import {
   checkCurrencyAmbiguity,
   compileAnomalyAlerts,
@@ -17,7 +17,7 @@ import {
   parseDocumentDeterministically,
   validateMathIntegrity,
   type ExtractionResult,
-} from '../src/utils/financialRules';
+} from '../src/utils/financialRules.js';
 
 interface ExtractRequestBody {
   text?: string;
