@@ -21,16 +21,23 @@ test('available Gemini Flash models are selected from models supported by the ke
     { name: 'models/gemini-2.5-flash-image', supportedActions: ['generateContent'] },
     { name: 'models/gemini-2.5-pro', supportedActions: ['generateContent'] },
     { name: 'models/gemini-2.5-flash', supportedActions: ['generateContent'] },
+    { name: 'models/gemini-3.8-flash', supportedActions: ['generateContent'] },
+    { name: 'models/gemini-3.8-flash-preview', supportedActions: ['generateContent'] },
     { name: 'models/gemini-2.5-flash-preview-tts', supportedActions: ['generateContent'] },
     { name: 'models/gemini-2.5-flash-not-supported', supportedActions: ['embedContent'] },
+    { name: 'models/gemini-3.8-flash-live', supportedActions: ['generateContent'] },
   ];
 
   assert.deepEqual(getAvailableGeminiFlashModels(models), [
+    'gemini-3.8-flash',
+    'gemini-3.8-flash-preview',
     'gemini-2.5-flash-lite',
     'gemini-2.5-flash',
   ]);
   assert.deepEqual(getAvailableGeminiFlashModels(models, 'gemini-2.5-flash'), [
     'gemini-2.5-flash',
+    'gemini-3.8-flash',
+    'gemini-3.8-flash-preview',
     'gemini-2.5-flash-lite',
   ]);
 });
@@ -40,8 +47,9 @@ test('available Gemini models can be empty when the key has no compatible Flash 
     getAvailableGeminiFlashModels([
       { name: 'models/gemini-2.5-pro', supportedActions: ['generateContent'] },
       { name: 'models/gemini-3.8-flash-preview', supportedActions: ['generateContent'] },
+      { name: 'models/gemini-3.8-flash-tts', supportedActions: ['generateContent'] },
       { name: 'models/embedding-001', supportedActions: ['embedContent'] },
     ]),
-    [],
+    ['gemini-3.8-flash-preview'],
   );
 });

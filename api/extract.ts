@@ -364,7 +364,7 @@ export default async function extractHandler(req: Request, res: Response): Promi
 
   try {
     const ai = new GoogleGenAI({ apiKey });
-    const preferredModel = process.env.GEMINI_MODEL?.trim() || 'gemini-2.5-flash-lite';
+    const preferredModel = process.env.GEMINI_MODEL?.trim() || 'gemini-3.8-flash';
     const availableModels = [];
     for await (const model of await ai.models.list({ config: { pageSize: 100 } })) {
       availableModels.push(model);
@@ -403,10 +403,14 @@ export default async function extractHandler(req: Request, res: Response): Promi
       } catch (error) {
         if (getGeminiApiErrorStatus(error) !== 404) throw error;
         lastModelError = error;
+        console.warn('Gemini model listed by this API key returned HTTP 404.', { model });
       }
     }
     if (!response) {
-      throw lastModelError ?? new Error('No available Gemini model supports content generation.');
+      console.error('Every listed Gemini Flash model returned HTTP 404.', {
+        attemptedModels: modelCandidates,
+      });
+      throw lastModelError ?? new Error('No listed Gemini Flash model accepted content generation.');
     }
 
     const responseText = response.text?.trim();
