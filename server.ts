@@ -45,17 +45,18 @@ function getGeminiClient(): GoogleGenAI | null {
   });
 }
 
-const TESSERACT_BIN_PATH = '/opt/homebrew/bin/tesseract';
+const TESSERACT_BIN_PATH = process.env.TESSERACT_BIN_PATH || 'tesseract';
 
 function runLocalImageOcr(fileData?: { base64?: string; mimeType?: string }): string {
   if (!fileData?.base64 || !fileData.mimeType?.startsWith('image/')) {
     return '';
   }
-  if (!fs.existsSync(TESSERACT_BIN_PATH)) {
-    return '';
-  }
   const cacheDir = path.join(__dirname, 'node_modules', '.cache-ocr');
-  const ext = fileData.mimeType.includes('png') ? 'png' : 'jpg';
+  const ext = fileData.mimeType.includes('png')
+    ? 'png'
+    : fileData.mimeType.includes('webp')
+      ? 'webp'
+      : 'jpg';
   const tmpFile = path.join(cacheDir, `blinka-ocr-${Date.now()}.${ext}`);
   try {
     fs.mkdirSync(cacheDir, { recursive: true, mode: 0o700 });
@@ -63,7 +64,7 @@ function runLocalImageOcr(fileData?: { base64?: string; mimeType?: string }): st
     const output = execFileSync(TESSERACT_BIN_PATH, [tmpFile, 'stdout', '-l', 'spa+eng'], {
       encoding: 'utf8',
       timeout: 8000,
-      env: { PATH: '/opt/homebrew/bin:/usr/bin:/bin' },
+      env: { PATH: process.env.PATH || '/usr/bin:/bin' },
     });
     return output.trim();
   } catch {
@@ -354,8 +355,14 @@ app.post('/api/extract', async (req, res) => {
 
     const ai = getGeminiClient();
     if (!ai) {
+      if (fileData && !effectiveText.trim()) {
+        return res.status(503).json({
+          error:
+            'No se pudo leer el contenido del archivo. Configura GEMINI_API_KEY o instala Tesseract para OCR local; no se usará el nombre del archivo como contenido.',
+        });
+      }
       const fallbackResult = parseDocumentDeterministically(
-        effectiveText || documentHint || '',
+        effectiveText,
         documentHint
       );
       return res.json({ success: true, data: fallbackResult, mode: 'deterministic-fallback' });
@@ -382,8 +389,14 @@ app.post('/api/extract', async (req, res) => {
   } catch (error: unknown) {
     const errMsg = error instanceof Error ? error.message : String(error);
     console.warn('Using deterministic fallback extractor due to API error:', errMsg);
+    if (fileData && !effectiveText.trim()) {
+      return res.status(503).json({
+        error:
+          'No se pudo leer el contenido del archivo. Verifica la configuración de Gemini o instala Tesseract para OCR local; no se mostrarán datos de otro documento.',
+      });
+    }
     const fallbackResult = parseDocumentDeterministically(
-      effectiveText || documentHint || '',
+      effectiveText,
       documentHint
     );
     return res.json({ success: true, data: fallbackResult, mode: 'deterministic-fallback' });

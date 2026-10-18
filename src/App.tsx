@@ -13,6 +13,7 @@ import { VisualDocumentPreview } from './components/VisualDocumentPreview';
 import { ChallengeSuccessKPIs } from './components/ChallengeSuccessKPIs';
 import { KanbanDecisionBoard } from './components/KanbanDecisionBoard';
 import { PolicyRulesPanel } from './components/PolicyRulesPanel';
+import { AgentMascot } from './components/AgentMascot';
 import { SAMPLE_INVOICES, type SampleInvoice } from './data/sampleInvoices';
 import {
   parseDocumentDeterministically,
@@ -44,6 +45,7 @@ export default function App() {
   const [activeResult, setActiveResult] = useState<ExtractionResult>(
     SAMPLE_INVOICES[0].expectedResult
   );
+  const [hasCurrentResult, setHasCurrentResult] = useState<boolean>(true);
   const [uploadedPreview, setUploadedPreview] = useState<{ url?: string; filename?: string }>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [scanStep, setScanStep] = useState<number>(5);
@@ -52,6 +54,7 @@ export default function App() {
 
   const handleSelectSample = (sample: SampleInvoice) => {
     setSelectedSample(sample);
+    setHasCurrentResult(true);
     setCustomText(sample.rawText);
     setUploadedPreview({});
     setErrorMessage(null);
@@ -76,6 +79,7 @@ export default function App() {
   };
 
   const handleSelectHistoryItem = (item: HistoryItem) => {
+    setHasCurrentResult(true);
     setActiveResult(item.result);
     setActiveView('simulator');
 
@@ -150,6 +154,7 @@ export default function App() {
     documentHint?: string;
   }) => {
     setIsLoading(true);
+    setHasCurrentResult(false);
     setScanStep(1);
     setErrorMessage(null);
 
@@ -162,6 +167,7 @@ export default function App() {
 
     if (payload.fileData) {
       setSelectedSample(null);
+      setCustomText('');
       setUploadedPreview({
         url: payload.fileData.previewUrl,
         filename: payload.fileData.filename,
@@ -184,15 +190,19 @@ export default function App() {
         }
 
         extracted = resData.data;
-      } catch {
+      } catch (error) {
+        if (payload.fileData) {
+          throw error;
+        }
         extracted = parseDocumentDeterministically(
-          payload.text || customText,
+          payload.text || '',
           payload.documentHint
         );
       }
 
       await scanAnimation;
       setActiveResult(extracted);
+      setHasCurrentResult(true);
       if (payload.fileData && extracted.documentMetadata?.rawTextExcerpt) {
         setCustomText(extracted.documentMetadata.rawTextExcerpt);
       }
@@ -206,6 +216,13 @@ export default function App() {
       };
 
       setHistory((prev) => [newItem, ...prev.slice(0, 14)]);
+    } catch (error) {
+      const details = error instanceof Error ? error.message : 'Error desconocido.';
+      setErrorMessage(
+        payload.fileData
+          ? `No se pudo analizar el archivo cargado. ${details} No se mostraron datos de otro escenario.`
+          : details
+      );
     } finally {
       await scanAnimation;
       setIsLoading(false);
@@ -298,13 +315,29 @@ export default function App() {
 
             {/* Columna Derecha: Mascota Blinky + Escaneo Paso a Paso + Veredicto en Español + Acordeón Técnico */}
             <div className="lg:col-span-7">
-              <ExtractionResults
-                data={activeResult}
-                policy={policy}
-                isScanning={isLoading}
-                scanStep={scanStep}
-                onCfoDecision={handleActiveCfoDecision}
-              />
+              {hasCurrentResult ? (
+                <ExtractionResults
+                  data={activeResult}
+                  policy={policy}
+                  isScanning={isLoading}
+                  scanStep={scanStep}
+                  onCfoDecision={handleActiveCfoDecision}
+                />
+              ) : isLoading ? (
+                <AgentMascot
+                  decisionCode={evaluateGovernanceDecision(activeResult, policy).decisionCode}
+                  isScanning
+                  scanStep={scanStep}
+                />
+              ) : (
+                <div
+                  role="status"
+                  className="rounded-2xl border border-dashed border-slate-700 bg-[#111827]/80 p-6 text-center text-sm text-slate-300"
+                >
+                  El resultado anterior está oculto para evitar mezclarlo con el archivo nuevo.
+                  Vuelve a analizar el documento para ver sus datos.
+                </div>
+              )}
             </div>
           </section>
         )}

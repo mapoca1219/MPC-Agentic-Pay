@@ -31,7 +31,9 @@ La decisión de gobernanza es una recomendación de software: **esta demo no ini
 - Procesamiento de texto y carga de documentos compatibles con el endpoint de extracción.
 - Extracción estructurada de proveedor, cliente, factura, moneda, montos, fechas, datos bancarios y conceptos.
 - Uso opcional de Gemini para extracción asistida por IA.
-- Modo determinista local cuando no hay una clave de Gemini disponible, para poder explorar el flujo sin configurar un servicio externo.
+- OCR local opcional con Tesseract para imágenes cuando Gemini no está configurado.
+- Modo determinista local para texto cuando no hay una clave de Gemini disponible, para poder explorar el flujo sin configurar un servicio externo.
+- Si un archivo no se puede leer, la aplicación informa el error y no reutiliza los datos de otro escenario ni trata el nombre del archivo como el contenido.
 - Los campos no encontrados se mantienen explícitamente como faltantes; no se presentan como datos verificados.
 
 ### Motor de políticas y señales de riesgo
@@ -96,7 +98,7 @@ npm install
 cp .env.example .env
 ```
 
-Edita `.env` solo si vas a habilitar Gemini y reemplaza `GEMINI_API_KEY` con tu propia clave. No publiques ese archivo ni incluyas claves en capturas, commits o demos públicas. Sin una clave válida, el servidor usa el extractor determinista.
+Edita `.env` solo si vas a habilitar Gemini y reemplaza `GEMINI_API_KEY` con tu propia clave. No publiques ese archivo ni incluyas claves en capturas, commits o demos públicas. Sin una clave válida, el servidor usa el extractor determinista para texto; para OCR local de imágenes instala Tesseract y asegúrate de que esté en `PATH` (o define `TESSERACT_BIN_PATH`). Para analizar archivos PDF se requiere Gemini.
 
 Inicia la aplicación:
 
