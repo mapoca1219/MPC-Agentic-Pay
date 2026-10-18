@@ -140,3 +140,5 @@ Las pruebas cubren las reglas financieras, reportes agregados y controles de acc
 ## Licencia
 
 El punto de entrada de la aplicación declara la licencia Apache-2.0. Revisa el alcance de la licencia y los avisos de terceros correspondientes antes de redistribuir el proyecto.
+
+## 🔑 Token de acceso para probar subida de archivos en vivo en la Demo: ccbf763696f726ab7b646875edd243b12d8e9db8c76915c981bf14197fb733ab (Los 9 escenarios del simulador y el análisis de texto funcionan directo sin necesidad de token)
