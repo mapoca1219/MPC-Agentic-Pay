@@ -13,13 +13,6 @@ import { VisualDocumentPreview } from './components/VisualDocumentPreview';
 import { ChallengeSuccessKPIs } from './components/ChallengeSuccessKPIs';
 import { KanbanDecisionBoard } from './components/KanbanDecisionBoard';
 import { PolicyRulesPanel } from './components/PolicyRulesPanel';
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from './components/ui/Card';
 import { SAMPLE_INVOICES, type SampleInvoice } from './data/sampleInvoices';
 import {
   parseDocumentDeterministically,
@@ -239,138 +232,103 @@ export default function App() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-4">
         {/* Error notification if any */}
         {errorMessage && (
-          <Card className="p-3.5 shadow-[0_0_20px_rgba(244,63,94,0.12)] border-rose-500/50">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-rose-400 shrink-0" />
-                <span>{errorMessage}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setErrorMessage(null)}
-                className="text-rose-300 hover:text-white font-bold px-2 py-1 rounded cursor-pointer"
-              >
-                Cerrar
-              </button>
+          <div className="p-3.5 rounded-xl bg-rose-950/80 border border-rose-500/50 text-rose-200 text-xs flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-rose-400 shrink-0" />
+              <span>{errorMessage}</span>
             </div>
-          </Card>
+            <button
+              type="button"
+              onClick={() => setErrorMessage(null)}
+              className="text-rose-300 hover:text-white font-bold px-2 py-1 rounded cursor-pointer"
+            >
+              Cerrar
+            </button>
+          </div>
         )}
 
         {/* VISTA 1: ⚡ AGENTE EN VIVO (SIMULADOR EN 2 COLUMNAS SIN SCROLL LARGO) */}
         {activeView === 'simulator' && (
-          <Card className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start p-0 sm:p-0 pt-0">
-            <CardHeader>
-              <CardTitle>Agente en Vivo — Simulador de Extracción</CardTitle>
-              <CardDescription>
-                Sube un documento (PDF, imagen, correo o chat) y Blinky lo escanea en 5 pasos
-                deterministas: OCR/IA → Anti-duplicado → Lista blanca → Tasa USD → Veredicto.
-              </CardDescription>
-            </CardHeader>
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start p-4 sm:p-5 lg:p-6">
-              {/* Columna Izquierda: Selector de 9 Casos / Subida + Vista Previa del Documento Original */}
-              <div className="lg:col-span-5 space-y-3.5">
-                <DocumentInput
-                  selectedSample={selectedSample}
-                  customText={customText}
-                  onCustomTextChange={setCustomText}
-                  onSelectSample={handleSelectSample}
-                  onExtract={handleExtract}
-                  isLoading={isLoading}
-                />
+          <section
+            aria-label="Agente en Vivo: Simulador y Visor Interactivo"
+            className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start"
+          >
+            {/* Columna Izquierda: Selector de 9 Casos / Subida + Vista Previa del Documento Original */}
+            <div className="lg:col-span-5 space-y-3.5">
+              <DocumentInput
+                selectedSample={selectedSample}
+                customText={customText}
+                onCustomTextChange={setCustomText}
+                onSelectSample={handleSelectSample}
+                onExtract={handleExtract}
+                isLoading={isLoading}
+              />
 
-                <VisualDocumentPreview
-                  sample={selectedSample}
-                  rawText={customText}
-                  onRawTextChange={setCustomText}
-                  extractionResult={activeResult}
-                  uploadedPreviewUrl={uploadedPreview.url}
-                  uploadedFilename={uploadedPreview.filename}
-                />
-              </div>
-
-              {/* Columna Derecha: Mascota Blinky + Escaneo Paso a Paso + Veredicto en Español + Acordeón Técnico */}
-              <div className="lg:col-span-7">
-                <ExtractionResults
-                  data={activeResult}
-                  policy={policy}
-                  isScanning={isLoading}
-                  scanStep={5}
-                  onCfoDecision={handleActiveCfoDecision}
-                />
-              </div>
+              <VisualDocumentPreview
+                sample={selectedSample}
+                rawText={customText}
+                onRawTextChange={setCustomText}
+                extractionResult={activeResult}
+                uploadedPreviewUrl={uploadedPreview.url}
+                uploadedFilename={uploadedPreview.filename}
+              />
             </div>
-          </Card>
+
+            {/* Columna Derecha: Mascota Blinky + Escaneo Paso a Paso + Veredicto en Español + Acordeón Técnico */}
+            <div className="lg:col-span-7">
+              <ExtractionResults
+                data={activeResult}
+                policy={policy}
+                isScanning={isLoading}
+                scanStep={5}
+                onCfoDecision={handleActiveCfoDecision}
+              />
+            </div>
+          </section>
         )}
 
         {/* VISTA 2: 📋 TABLERO DE DECISIONES (KANBAN 3 COLUMNAS) */}
         {activeView === 'kanban' && (
-          <Card aria-label="Tablero de Decisiones Kanban" className="space-y-4 p-4 sm:p-5">
-            <CardHeader>
-              <CardTitle>Tablero de Decisiones — Kanban de Pagos</CardTitle>
-              <CardDescription>
-                Cada factura auditada se clasifica en Pagó, Frenó o Escaló. Arrastra para cambiar de
-                columna y acelera la conciliación mensual.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-0 sm:p-0 pt-0 pb-0">
-              <KanbanDecisionBoard
-                history={history}
-                policy={policy}
-                onSelectForSimulator={handleSelectHistoryItem}
-                onCfoDecisionForItem={handleHistoryItemCfoDecision}
-                onResetAllSamples={() => setHistory(buildInitialHistory())}
-              />
-            </CardContent>
-          </Card>
+          <section aria-label="Tablero de Decisiones Kanban" className="space-y-4">
+            <KanbanDecisionBoard
+              history={history}
+              policy={policy}
+              onSelectForSimulator={handleSelectHistoryItem}
+              onCfoDecisionForItem={handleHistoryItemCfoDecision}
+              onResetAllSamples={() => setHistory(buildInitialHistory())}
+            />
+          </section>
         )}
 
         {/* VISTA 3: ⚙️ REGLAS Y PRESUPUESTO (SLIDERS + TASAS + LISTA BLANCA EDITABLE) */}
         {activeView === 'rules' && (
-          <Card className="space-y-4 p-4 sm:p-5">
-            <CardHeader>
-              <CardTitle>Reglas y Presupuesto en Vivo</CardTitle>
-              <CardDescription>
-                Ajusta límites, tasas de cambio y lista blanca de proveedores. Blinky re-evalúa al
-                instante todas las facturas del simulador y el tablero Kanban.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-0 sm:p-0 pt-0 pb-0">
-              <PolicyRulesPanel
-                policy={policy}
-                onUpdatePolicy={setPolicy}
-                onResetPolicy={() => setPolicy(DEFAULT_CORPORATE_POLICY)}
-              />
-              <RulesBanner />
-            </CardContent>
-          </Card>
+          <section aria-label="Configuración de Reglas y Presupuesto" className="space-y-4">
+            <PolicyRulesPanel
+              policy={policy}
+              onUpdatePolicy={setPolicy}
+              onResetPolicy={() => setPolicy(DEFAULT_CORPORATE_POLICY)}
+            />
+            <RulesBanner />
+          </section>
         )}
 
         {/* VISTA 4: 📊 CONCILIACIÓN MENSUAL (KPIS + TABLA Y EXPORTACIÓN CSV / EXCEL) */}
         {activeView === 'reconciliation' && (
-          <Card className="space-y-4 p-4 sm:p-5">
-            <CardHeader>
-              <CardTitle>Conciliación Mensual y Exportación Contable</CardTitle>
-              <CardDescription>
-                Métricas de autonomía, seguridad, pagos y tiempo ahorrado. Exporta la reconciliación
-                en CSV para el cierre financiero.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-0 sm:p-0 pt-0 pb-0">
-              <ChallengeSuccessKPIs history={history} policy={policy} />
-              <ExtractionHistory
-                history={history}
-                policy={policy}
-                activeId={
-                  history.find((h) => h.result === activeResult)?.id ||
-                  history.find((h) => h.sampleId === selectedSample?.id)?.id
-                }
-                onSelect={handleSelectHistoryItem}
-                onClear={() => setHistory([])}
-                onLoadAllSamples={() => setHistory(buildInitialHistory())}
-                onCfoDecisionForItem={handleHistoryItemCfoDecision}
-              />
-            </CardContent>
-          </Card>
+          <section aria-label="Conciliación Mensual y Exportación Contable" className="space-y-4">
+            <ChallengeSuccessKPIs history={history} policy={policy} />
+            <ExtractionHistory
+              history={history}
+              policy={policy}
+              activeId={
+                history.find((h) => h.result === activeResult)?.id ||
+                history.find((h) => h.sampleId === selectedSample?.id)?.id
+              }
+              onSelect={handleSelectHistoryItem}
+              onClear={() => setHistory([])}
+              onLoadAllSamples={() => setHistory(buildInitialHistory())}
+              onCfoDecisionForItem={handleHistoryItemCfoDecision}
+            />
+          </section>
         )}
       </main>
 
