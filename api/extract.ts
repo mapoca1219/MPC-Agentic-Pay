@@ -18,6 +18,10 @@ import {
   validateMathIntegrity,
   type ExtractionResult,
 } from '../src/utils/financialRules.js';
+import {
+  getGeminiApiErrorMessage,
+  getGeminiApiErrorStatus,
+} from '../src/utils/geminiApiError.js';
 
 interface ExtractRequestBody {
   text?: string;
@@ -397,10 +401,12 @@ export default async function extractHandler(req: Request, res: Response): Promi
     const result = buildExtractionResult(parsed, '', base64);
     res.status(200).json({ success: true, data: result, mode: 'gemini' });
   } catch (error) {
-    console.error('File extraction failed:', error instanceof Error ? error.name : 'Unknown error');
+    console.error('Gemini extraction failed', {
+      errorName: error instanceof Error ? error.name : 'Unknown error',
+      status: getGeminiApiErrorStatus(error),
+    });
     res.status(502).json({
-      error:
-        'No se pudo extraer la información del archivo. Verifica el formato y la clave GEMINI_API_KEY configurada en Vercel.',
+      error: getGeminiApiErrorMessage(error),
     });
   }
   } catch (error) {

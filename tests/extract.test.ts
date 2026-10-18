@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { Request, Response } from 'express';
-import extractHandler from './extract.ts';
+import extractHandler from '../api/extract.ts';
 
 let requestNumber = 0;
 

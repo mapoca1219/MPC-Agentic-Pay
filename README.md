@@ -123,7 +123,7 @@ El rate limit de la función serverless es en memoria por instancia y es solo un
 ```bash
 npm run lint
 npm run build
-node --import tsx --test src/utils/financialRules.test.ts src/utils/privacySafeReport.test.ts api/extract.test.ts
+node --import tsx --test src/utils/*.test.ts tests/extract.test.ts
 ```
 
 Las pruebas cubren las reglas financieras, reportes agregados y controles de acceso/formato del endpoint.
