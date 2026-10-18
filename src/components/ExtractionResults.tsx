@@ -35,6 +35,7 @@ import {
   type PaymentUrgencyInfo,
 } from '../utils/financialRules';
 import { AgentMascot } from './AgentMascot';
+import { buildPrivacySafeReport } from '../utils/privacySafeReport';
 
 interface ExtractionResultsProps {
   data: ExtractionResult;
@@ -127,6 +128,7 @@ interface DecisionSummaryHeaderProps {
   shortHash: string;
   fullHash: string;
   isAttack: boolean;
+  isInspectionIncomplete: boolean;
   hashCopied: boolean;
   onCopyHash: () => void;
 }
@@ -137,6 +139,7 @@ const DecisionSummaryHeader: React.FC<DecisionSummaryHeaderProps> = ({
   shortHash,
   fullHash,
   isAttack,
+  isInspectionIncomplete,
   hashCopied,
   onCopyHash,
 }) => {
@@ -235,6 +238,11 @@ const DecisionSummaryHeader: React.FC<DecisionSummaryHeaderProps> = ({
             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold text-[9px]">
               <ShieldAlert className="h-3 w-3 text-rose-400" />
               Manipulación
+            </span>
+          ) : isInspectionIncomplete ? (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-400/40 font-bold text-[9px]">
+              <AlertTriangle className="h-3 w-3 text-amber-400" />
+              Inspección incompleta
             </span>
           ) : (
             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-500/20 text-[#00F5D4] border border-cyan-400/40 font-bold text-[9px]">
@@ -534,7 +542,7 @@ const TechnicalAccordion: React.FC<TechnicalAccordionProps> = ({
         {techTab === 'blinka_payload' && (
           <div className="space-y-2">
             <div className="flex items-center justify-between text-[11px] font-mono bg-[#0D1322] text-slate-300 px-3 py-1.5 rounded-lg border border-slate-800">
-              <span>Idempotency Key: {paymentIntentPayload.idempotencyKey}</span>
+              <span>Idempotency Key: [REDACTADO]</span>
               <strong
                 className={
                   paymentIntentPayload.paymentExecutionBlocked
@@ -603,9 +611,31 @@ export const ExtractionResults: React.FC<ExtractionResultsProps> = ({
   const shortHash = data.securityAudit.shortHash || fallbackHash.shortHash;
   const fullHash = data.securityAudit.documentHashSha256 || fallbackHash.fullHash;
   const isAttack = data.securityAudit.promptInjectionDetected;
+  const isInspectionIncomplete = data.securityAudit.promptInjectionScanComplete === false;
 
-  const jsonString = JSON.stringify(data, null, 2);
-  const payloadJsonString = JSON.stringify(paymentIntentPayload, null, 2);
+  const jsonString = JSON.stringify(
+    buildPrivacySafeReport([decision.decisionCode]),
+    null,
+    2
+  );
+  const payloadJsonString = JSON.stringify(
+    {
+      object: paymentIntentPayload.object,
+      paymentExecutionBlocked: paymentIntentPayload.paymentExecutionBlocked,
+      status: paymentIntentPayload.status,
+      blockCode: paymentIntentPayload.blockCode ?? null,
+      beneficiary: '[REDACTADO]',
+      sourceAmountUSD: '[REDACTADO]',
+      targetAmount: '[REDACTADO]',
+      idempotencyKey: '[REDACTADO]',
+      policyAuditId: '[REDACTADO]',
+      rail: paymentIntentPayload.rail,
+      triggeredRule: paymentIntentPayload.triggeredRule,
+      humanApprovedBy: paymentIntentPayload.humanApprovedBy ? '[REDACTADO]' : null,
+    },
+    null,
+    2
+  );
 
   const handleCopyTech = () => {
     const textToCopy = techTab === 'blinka_payload' ? payloadJsonString : jsonString;
@@ -625,7 +655,7 @@ export const ExtractionResults: React.FC<ExtractionResultsProps> = ({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `blinka-extraction-${data.invoice.invoiceId || 'doc'}-${Date.now()}.json`;
+    a.download = `blinka-resumen-privado-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -659,6 +689,7 @@ export const ExtractionResults: React.FC<ExtractionResultsProps> = ({
           shortHash={shortHash}
           fullHash={fullHash}
           isAttack={isAttack}
+          isInspectionIncomplete={isInspectionIncomplete}
           hashCopied={hashCopied}
           onCopyHash={handleCopyHash}
         />

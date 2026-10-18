@@ -28,9 +28,9 @@ La decisión de gobernanza es una recomendación de software: **esta demo no ini
 
 ### Extracción financiera
 
-- Procesamiento de texto y carga de documentos compatibles con el endpoint de extracción.
+- Procesamiento de texto o carga de documentos PDF e imágenes PNG, JPEG, WEBP, HEIC o HEIF de hasta 3 MB.
 - Extracción estructurada de proveedor, cliente, factura, moneda, montos, fechas, datos bancarios y conceptos.
-- Uso opcional de Gemini para extracción asistida por IA.
+- El análisis de archivos requiere una clave de acceso temporal y consentimiento explícito; los documentos se envían al servidor y a Google Gemini.
 - OCR local opcional con Tesseract para imágenes cuando Gemini no está configurado.
 - Modo determinista local para texto cuando no hay una clave de Gemini disponible, para poder explorar el flujo sin configurar un servicio externo.
 - Si un archivo no se puede leer, la aplicación informa el error y no reutiliza los datos de otro escenario ni trata el nombre del archivo como el contenido.
@@ -53,7 +53,7 @@ La decisión de gobernanza es una recomendación de software: **esta demo no ini
 - **Conciliación:** tarjetas contables con importes, proveedor, urgencia, decisión, cuenta destino, riel recomendado, integridad y explicación.
 - **Filtros por decisión** en la conciliación, con conteos por estado.
 - **Paginación:** hasta 9 documentos por página en conciliación y 5 tarjetas por columna en Kanban, para mantener las vistas manejables cuando crece el historial.
-- **Exportación CSV y JSON** del registro contable.
+- **Exportación CSV y JSON** con conteos agregados por decisión, sin filas ni datos por documento.
 
 ## Recorrido sugerido para presentar el proyecto
 
@@ -98,7 +98,7 @@ npm install
 cp .env.example .env
 ```
 
-Edita `.env` solo si vas a habilitar Gemini y reemplaza `GEMINI_API_KEY` con tu propia clave. No publiques ese archivo ni incluyas claves en capturas, commits o demos públicas. Sin una clave válida, el servidor usa el extractor determinista para texto; para OCR local de imágenes instala Tesseract y asegúrate de que esté en `PATH` (o define `TESSERACT_BIN_PATH`). Para analizar archivos PDF se requiere Gemini.
+Edita `.env` para reemplazar `GEMINI_API_KEY` con tu propia clave y define `EXTRACTION_API_TOKEN` con un secreto aleatorio de al menos 32 caracteres. No publiques ese archivo ni incluyas claves en capturas, commits o demos públicas. Sin una clave válida, el servidor usa el extractor determinista para texto; para OCR local de imágenes instala Tesseract y asegúrate de que esté en `PATH` (o define `TESSERACT_BIN_PATH`). Para analizar archivos PDF se requiere Gemini.
 
 Inicia la aplicación:
 
@@ -110,18 +110,23 @@ Abre [http://localhost:3000](http://localhost:3000). El endpoint de salud está 
 
 ## Despliegue en Vercel
 
-La función de extracción para Vercel está en `api/extract.ts` y se publica en `/api/extract`. En la configuración del proyecto de Vercel agrega `GEMINI_API_KEY` en **Settings → Environment Variables** para los entornos que uses y vuelve a desplegar. La clave debe permanecer en el servidor; nunca la pongas en variables `VITE_*` ni en el código del navegador.
+La función de extracción para Vercel está en `api/extract.ts` y se publica en `/api/extract`. En la configuración del proyecto de Vercel agrega `GEMINI_API_KEY` y `EXTRACTION_API_TOKEN` en **Settings → Environment Variables** para los entornos que uses y vuelve a desplegar. Genera un token aleatorio largo (por ejemplo, con `openssl rand -base64 32`) y compártelo únicamente con personas autorizadas. La clave de Gemini y el token deben permanecer en los secretos del servidor; nunca los pongas en variables `VITE_*`, el código del navegador ni el repositorio.
 
-El análisis de archivos PDF e imágenes usa Gemini. Sin esa variable configurada, el endpoint devuelve un error accionable y no sustituye el documento por un escenario de muestra. El análisis de texto pegado conserva el modo determinista local.
+El análisis de archivos queda desactivado si falta cualquiera de esas variables. La interfaz solicita el token y consentimiento antes de procesar el archivo; el token solo vive temporalmente en memoria del navegador, se transmite en el encabezado `Authorization` y no se escribe en el cuerpo de la solicitud ni en el almacenamiento local. El análisis de texto pegado sigue siendo determinista y no usa Gemini.
+
+Los archivos se procesan en el servidor y se transmiten a Google Gemini; no subas documentos reales, datos personales ni información bancaria a esta demo. El extractor solicita una transcripción para buscar instrucciones maliciosas, pero OCR/IA no garantiza inspección completa; si no hay una transcripción, el resultado se escala para revisión humana. Las exportaciones disponibles contienen únicamente conteos agregados.
+
+El rate limit de la función serverless es en memoria por instancia y es solo una protección básica, no un control global ni una defensa suficiente para producción. Para una exposición pública real, usa autenticación por usuario, límites de gasto del proveedor, monitorización y un limitador compartido. Ninguna cabecera, token compartido ni detector garantiza una aplicación invulnerable.
 
 ## Validación
 
 ```bash
 npm run lint
 npm run build
+node --import tsx --test src/utils/financialRules.test.ts src/utils/privacySafeReport.test.ts api/extract.test.ts
 ```
 
-Las pruebas del motor de reglas están en `src/utils/financialRules.test.ts`.
+Las pruebas cubren las reglas financieras, reportes agregados y controles de acceso/formato del endpoint.
 
 ## Alcance y consideraciones
 

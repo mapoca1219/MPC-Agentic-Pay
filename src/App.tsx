@@ -152,6 +152,7 @@ export default function App() {
     text?: string;
     fileData?: { mimeType: string; base64: string; filename?: string; previewUrl?: string };
     documentHint?: string;
+    apiToken?: string;
   }) => {
     setIsLoading(true);
     setHasCurrentResult(false);
@@ -177,10 +178,24 @@ export default function App() {
     try {
       let extracted: ExtractionResult;
       try {
+        const { apiToken, ...payloadWithoutToken } = payload;
+        const requestPayload = payloadWithoutToken.fileData
+          ? {
+              ...payloadWithoutToken,
+              fileData: {
+                mimeType: payloadWithoutToken.fileData.mimeType,
+                base64: payloadWithoutToken.fileData.base64,
+                filename: payloadWithoutToken.fileData.filename,
+              },
+            }
+          : payloadWithoutToken;
         const response = await fetch('/api/extract', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+          headers: {
+            'Content-Type': 'application/json',
+            ...(apiToken ? { Authorization: `Bearer ${apiToken}` } : {}),
+          },
+          body: JSON.stringify(requestPayload),
         });
 
         const responseText = await response.text();

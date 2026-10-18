@@ -24,6 +24,7 @@ interface DocumentInputProps {
     text?: string;
     fileData?: { mimeType: string; base64: string; filename?: string; previewUrl?: string };
     documentHint?: string;
+    apiToken?: string;
   }) => void;
   isLoading: boolean;
 }
@@ -83,9 +84,13 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
   const [activeTab, setActiveTab] = useState<'samples' | 'upload' | 'text'>('samples');
   const [uploadedFile, setUploadedFile] = useState<{
     file: File;
+    mimeType: string;
     base64: string;
     previewUrl?: string;
   } | null>(null);
+  const [apiToken, setApiToken] = useState('');
+  const [externalProcessingConsent, setExternalProcessingConsent] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [documentHint, setDocumentHint] = useState<string>(
     selectedSample?.title || 'Factura electrónica de servicios'
   );
@@ -100,22 +105,62 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    const extensionMimeTypes: Record<string, string> = {
+      pdf: 'application/pdf',
+      heic: 'image/heic',
+      heif: 'image/heif',
+      png: 'image/png',
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      webp: 'image/webp',
+    };
+    const mimeType = file.type || extensionMimeTypes[extension ?? ''] || '';
+    setUploadedFile(null);
+    setExternalProcessingConsent(false);
+    const supportedTypes = new Set([
+      'application/pdf',
+      'image/png',
+      'image/jpeg',
+      'image/webp',
+      'image/heic',
+      'image/heif',
+    ]);
+    if (!supportedTypes.has(mimeType)) {
+      setUploadError('Formato no compatible. Selecciona PDF, PNG, JPEG, WEBP, HEIC o HEIF.');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > 3_000_000) {
+      setUploadError('El archivo supera el límite de 3 MB.');
+      e.target.value = '';
+      return;
+    }
+
+    setUploadError(null);
     const reader = new FileReader();
     reader.onload = () => {
       const result = reader.result as string;
       const base64Clean = result.split(',')[1] || result;
       setUploadedFile({
         file,
+        mimeType,
         base64: base64Clean,
         previewUrl: file.type.startsWith('image/') ? result : undefined,
       });
       setDocumentHint(file.name);
+    };
+    reader.onerror = () => {
+      setUploadedFile(null);
+      setUploadError('No se pudo leer el archivo seleccionado.');
     };
     reader.readAsDataURL(file);
   };
 
   const handleRemoveFile = () => {
     setUploadedFile(null);
+    setUploadError(null);
+    setExternalProcessingConsent(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -125,16 +170,18 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
     e.preventDefault();
 
     if (activeTab === 'upload') {
-      if (!uploadedFile) return;
+      if (!uploadedFile || !apiToken.trim() || !externalProcessingConsent) return;
       onExtract({
         fileData: {
-          mimeType: uploadedFile.file.type || 'application/pdf',
+          mimeType: uploadedFile.mimeType,
           base64: uploadedFile.base64,
           filename: uploadedFile.file.name,
           previewUrl: uploadedFile.previewUrl,
         },
         documentHint,
+        apiToken: apiToken.trim(),
       });
+      setApiToken('');
       return;
     }
 
@@ -145,7 +192,9 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
     });
   };
 
-  const disabled = isSubmitDisabled(isLoading, activeTab, Boolean(uploadedFile), customText);
+  const disabled =
+    isSubmitDisabled(isLoading, activeTab, Boolean(uploadedFile), customText) ||
+    (activeTab === 'upload' && (!apiToken.trim() || !externalProcessingConsent));
 
   return (
     <div className="bg-[#111827]/90 backdrop-blur-md rounded-2xl border border-slate-800/80 shadow-xl overflow-hidden">
@@ -267,7 +316,7 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
                   Haz clic para subir o arrastra una factura (PDF / Imagen)
                 </h4>
                 <p className="text-[11px] text-slate-400 mt-0.5">
-                  Blinka Sentinel AI extraerá los datos y verificará todas las reglas de pago.
+                  PDF o imagen (PNG, JPEG, WEBP, HEIC o HEIF), máximo 3 MB.
                 </p>
               </label>
             ) : (
@@ -306,6 +355,43 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
                 </button>
               </div>
             )}
+
+            {uploadError && (
+              <p role="alert" className="text-xs text-rose-300">
+                {uploadError}
+              </p>
+            )}
+
+            <label className="block space-y-1.5">
+              <span className="text-xs font-semibold text-slate-200">
+                Clave de acceso temporal para analizar archivos
+              </span>
+              <input
+                type="password"
+                autoComplete="off"
+                value={apiToken}
+                onChange={(event) => setApiToken(event.target.value)}
+                className="w-full rounded-lg border border-slate-700 bg-[#0D1322] px-3 py-2 text-xs text-slate-100 focus:border-cyan-400 focus:outline-none"
+                placeholder="Solicita la clave al administrador"
+              />
+              <span className="block text-[11px] text-slate-400">
+                Solo se mantiene en memoria mientras esta página está abierta; no la compartas ni la guardes.
+              </span>
+            </label>
+
+            <label className="flex items-start gap-2 rounded-lg border border-amber-400/30 bg-amber-400/5 p-3 text-xs text-slate-200">
+              <input
+                type="checkbox"
+                checked={externalProcessingConsent}
+                onChange={(event) => setExternalProcessingConsent(event.target.checked)}
+                className="mt-0.5 accent-cyan-400"
+              />
+              <span>
+                Entiendo que el archivo se enviará al servidor de la aplicación y a Google Gemini
+                para su extracción. No subiré documentos reales ni datos personales o bancarios a
+                esta demo.
+              </span>
+            </label>
           </div>
         )}
 

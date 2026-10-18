@@ -156,12 +156,13 @@ export interface ExtractionResult {
   anomalyAlerts: string[];
   securityAudit: {
     promptInjectionDetected: boolean;
+    promptInjectionScanComplete?: boolean;
     injectedCommandsIgnored: string[];
     missingCriticalFields: string[];
     currencyAmbiguity: boolean;
     documentHashSha256?: string;
     shortHash?: string;
-    integrityBadge?: 'Integridad Verificada' | 'Alerta de Manipulación';
+    integrityBadge?: 'Integridad Verificada' | 'Alerta de Manipulación' | 'Inspección Incompleta';
   };
   governanceDecision?: GovernanceDecision;
 }
@@ -766,6 +767,18 @@ export function evaluateGovernanceDecision(
       triggeredRule: 'Escudo Anti-Prompt Injection (Seguridad Crítica)',
       explanation: `Se frenó el pago de inmediato porque la factura ${invoiceLabel} de ${vendorLabel} contiene instrucciones ocultas de Prompt Injection intentando manipular a la IA para aprobar un desembolso de ${usdFormatted} saltándose las reglas.`,
       isDuplicate: false,
+    };
+  }
+
+  if (result.securityAudit.promptInjectionScanComplete === false) {
+    return {
+      ...baseDecisionContext,
+      decisionCode: 'ESCALATED',
+      actionLabel: 'Escaló',
+      status: 'ESCALADO',
+      triggeredRule: 'Revisión de seguridad incompleta',
+      explanation:
+        'Se requiere revisión humana porque no se pudo inspeccionar una transcripción confiable del documento en busca de instrucciones manipuladoras.',
     };
   }
 
@@ -1455,16 +1468,20 @@ export function parseDocumentDeterministically(
     anomalyAlerts: alerts,
     securityAudit: {
       promptInjectionDetected: injectionCheck.detected,
+      promptInjectionScanComplete: Boolean(text.trim()),
       injectedCommandsIgnored: injectionCheck.ignoredCommands,
       missingCriticalFields: missingFields,
       currencyAmbiguity: isCurrencyAmbiguous,
       documentHashSha256: fullHash,
       shortHash,
-      integrityBadge: injectionCheck.detected ? 'Alerta de Manipulación' : 'Integridad Verificada',
+      integrityBadge: injectionCheck.detected
+        ? 'Alerta de Manipulación'
+        : text.trim()
+          ? 'Integridad Verificada'
+          : 'Inspección Incompleta',
     },
   };
 
   result.governanceDecision = evaluateGovernanceDecision(result);
   return result;
 }
-

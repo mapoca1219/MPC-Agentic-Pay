@@ -6,6 +6,7 @@ import {
   Image as ImageIcon,
   ShieldAlert,
   ShieldCheck,
+  AlertTriangle,
   QrCode,
   Fingerprint,
   Code,
@@ -476,6 +477,8 @@ export const VisualDocumentPreview: React.FC<VisualDocumentPreviewProps> = ({
   const [viewMode, setViewMode] = useState<'visual' | 'raw'>('visual');
 
   const isInjection = extractionResult.securityAudit.promptInjectionDetected;
+  const isInspectionIncomplete =
+    extractionResult.securityAudit.promptInjectionScanComplete === false;
   const shortHash = extractionResult.securityAudit.shortHash || 'e3b0c442...98fc';
   const fullHash = extractionResult.securityAudit.documentHashSha256 || '';
   const visualFormat = uploadedPreviewUrl ? 'image' : sample?.visualFormat || 'pdf';
@@ -571,6 +574,11 @@ export const VisualDocumentPreview: React.FC<VisualDocumentPreviewProps> = ({
             <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md bg-rose-500/20 text-rose-300 border border-rose-500/40">
               <ShieldAlert className="h-3 w-3 text-rose-400" />
               Alerta de Manipulación
+            </span>
+          ) : isInspectionIncomplete ? (
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md bg-amber-500/20 text-amber-300 border border-amber-400/40">
+              <AlertTriangle className="h-3 w-3 text-amber-400" />
+              Inspección Incompleta
             </span>
           ) : (
             <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md bg-cyan-500/20 text-[#00F5D4] border border-cyan-400/40">

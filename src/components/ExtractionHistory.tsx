@@ -33,6 +33,10 @@ import {
   type CorporatePolicyConfig,
   type ExtractionResult,
 } from '../utils/financialRules';
+import {
+  buildPrivacySafeReport,
+  serializePrivacySafeReportCsv,
+} from '../utils/privacySafeReport';
 
 export interface HistoryItem {
   id: string;
@@ -54,31 +58,6 @@ interface ExtractionHistoryProps {
     channel: 'Slack Finance Bot' | 'WhatsApp CFO Alert'
   ) => void;
   activeId?: string;
-}
-
-interface AccountingRow {
-  ID: string;
-  Fecha: string;
-  Vencimiento: string;
-  Urgencia: string;
-  Proveedor: string;
-  CuentaDestino: string;
-  CuentaRegistradaOficial: string;
-  CuentaVerificada: string;
-  MontoOriginal: string;
-  Monto: string;
-  Moneda: string;
-  MontoUSD: string;
-  Decision: string;
-  DecisionCode: string;
-  ReglaActivada: string;
-  Explicacion: string;
-  RielBlinka: string;
-  IdempotencyKey: string;
-  AprobadoPorHumano: string;
-  HashSHA256: string;
-  HashCompleto: string;
-  Integridad: string;
 }
 
 function getDecisionBadgeStyle(code: string) {
@@ -113,52 +92,6 @@ function getUrgencyBadgeStyle(level: string): string {
   return 'bg-[#0D1322] text-slate-300 border-slate-700/60';
 }
 
-function formatDestinationAccount(item: HistoryItem): string {
-  const bankName = item.result.vendor.bankDetails?.bankName || 'N/A';
-  const accountNum = item.result.vendor.bankDetails?.accountNumber || 'S/N';
-  return `${bankName} (${accountNum})`;
-}
-
-function mapItemToAccountingRow(
-  item: HistoryItem,
-  idx: number,
-  policy: CorporatePolicyConfig
-): AccountingRow {
-  const decision = evaluateGovernanceDecision(item.result, policy);
-  const payload = buildBlinkaPaymentIntentPayload(item.result, decision);
-  const fallbackHash = computeDocumentSha256(
-    item.result.documentMetadata.rawTextExcerpt || item.title
-  );
-  const isPromptInjection = item.result.securityAudit.promptInjectionDetected;
-  const rawAmount = item.result.invoice.totalAmount ?? 0;
-  const currency = item.result.invoice.currency || 'USD';
-
-  return {
-    ID: item.result.invoice.invoiceId || `DOC-${String(idx + 1).padStart(3, '0')}`,
-    Fecha: item.result.invoice.issueDate || item.timestamp.slice(0, 10),
-    Vencimiento: item.result.invoice.dueDate || 'Sin fecha',
-    Urgencia: decision.urgency.label,
-    Proveedor: item.result.vendor.name || 'Proveedor No Identificado',
-    CuentaDestino: formatDestinationAccount(item),
-    CuentaRegistradaOficial: decision.registeredAccount || 'No registrado',
-    CuentaVerificada: decision.accountMatchesRegistered ? 'Verificada' : 'Alerta / No coincide',
-    MontoOriginal: `${rawAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} ${currency}`,
-    Monto: rawAmount.toFixed(2),
-    Moneda: currency,
-    MontoUSD: `$${decision.amountUsd.toFixed(2)} USD`,
-    Decision: `${decision.actionLabel} (${decision.decisionCode})`,
-    DecisionCode: decision.decisionCode,
-    ReglaActivada: decision.triggeredRule,
-    Explicacion: decision.explanation,
-    RielBlinka: decision.recommendedRail,
-    IdempotencyKey: payload.idempotencyKey,
-    AprobadoPorHumano: payload.humanApprovedBy || 'Resolución Autónoma Agente',
-    HashSHA256: item.result.securityAudit.shortHash || fallbackHash.shortHash,
-    HashCompleto: item.result.securityAudit.documentHashSha256 || fallbackHash.fullHash,
-    Integridad: isPromptInjection ? 'Alerta de Manipulación' : 'Integridad Verificada',
-  };
-}
-
 export const ExtractionHistory: React.FC<ExtractionHistoryProps> = ({
   history,
   policy = DEFAULT_CORPORATE_POLICY,
@@ -174,16 +107,17 @@ export const ExtractionHistory: React.FC<ExtractionHistoryProps> = ({
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 9;
 
-  const evaluatedHistory = history.map((item, idx) => ({
+  const evaluatedHistory = history.map((item) => ({
     item,
     decision: evaluateGovernanceDecision(item.result, policy),
-    row: mapItemToAccountingRow(item, idx, policy),
   }));
 
-  const accountingRows = evaluatedHistory.map((x) => x.row);
   const paidCount = evaluatedHistory.filter((x) => x.decision.decisionCode === 'PAID').length;
   const rejectedCount = evaluatedHistory.filter((x) => x.decision.decisionCode === 'REJECTED').length;
   const escalatedCount = evaluatedHistory.filter((x) => x.decision.decisionCode === 'ESCALATED').length;
+  const privacySafeReport = buildPrivacySafeReport(
+    evaluatedHistory.map((entry) => entry.decision.decisionCode)
+  );
 
   const filteredHistory = evaluatedHistory.filter(
     (x) => filterDecision === 'all' || x.decision.decisionCode === filterDecision
@@ -219,64 +153,7 @@ export const ExtractionHistory: React.FC<ExtractionHistoryProps> = ({
   const handleNextPage = () => setPage(Math.min(currentPage + 1, totalPages));
 
   const handleExportCSV = () => {
-    const headers = [
-      'ID',
-      'Fecha',
-      'Factura',
-      'Proveedor',
-      'Beneficiario',
-      'Monto',
-      'Moneda',
-      'Monto Original',
-      'Monto USD',
-      'Para Cuándo (Due Date)',
-      'Urgencia',
-      'Cuenta Destino',
-      'Cuenta Oficial Blinka',
-      'Riel de Liquidación (Smart Rail)',
-      'Idempotency Key',
-      'Aprobación CFO',
-      'Decisión',
-      'Regla Activada',
-      'Explicación',
-      'Hash SHA-256',
-      'Estado Integridad',
-    ];
-
-    const escapeCsv = (val: string) => `"${String(val ?? '').replaceAll('"', '""')}"`;
-
-    const csvLines = [
-      headers.map(escapeCsv).join(','),
-      ...accountingRows.map((r) =>
-        [
-          r.ID,
-          r.Fecha,
-          r.ID,
-          r.Proveedor,
-          r.Proveedor,
-          r.Monto,
-          r.Moneda,
-          r.MontoOriginal,
-          r.MontoUSD,
-          r.Vencimiento,
-          r.Urgencia,
-          r.CuentaDestino,
-          r.CuentaRegistradaOficial,
-          r.RielBlinka,
-          r.IdempotencyKey,
-          r.AprobadoPorHumano,
-          r.Decision,
-          r.ReglaActivada,
-          r.Explicacion,
-          r.HashSHA256,
-          r.Integridad,
-        ]
-          .map(escapeCsv)
-          .join(',')
-      ),
-    ];
-
-    const csvContent = '\uFEFF' + csvLines.join('\r\n');
+    const csvContent = serializePrivacySafeReportCsv(privacySafeReport);
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -287,14 +164,9 @@ export const ExtractionHistory: React.FC<ExtractionHistoryProps> = ({
   };
 
   const handleExportJSON = () => {
-    const payload = {
-      auditExportTimestamp: new Date().toISOString(),
-      system: 'Blinka Corporate Payment Governance (US -> LATAM Smart Rail Engine)',
-      totalDocumentsAudited: accountingRows.length,
-      accountingReconciliationLog: accountingRows,
-    };
-
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(privacySafeReport, null, 2)], {
+      type: 'application/json',
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -433,6 +305,8 @@ export const ExtractionHistory: React.FC<ExtractionHistoryProps> = ({
               {currentPageItems.map(({ item, decision }, idx) => {
             const displayIndex = (currentPage - 1) * PAGE_SIZE + idx;
             const isAttack = item.result.securityAudit.promptInjectionDetected;
+            const isInspectionIncomplete =
+              item.result.securityAudit.promptInjectionScanComplete === false;
             const origAmount = item.result.invoice.totalAmount ?? 0;
             const origCurrency = item.result.invoice.currency || 'USD';
             const vendorTitle = item.result.vendor.name || item.title;
@@ -588,6 +462,11 @@ export const ExtractionHistory: React.FC<ExtractionHistoryProps> = ({
                           <span className="text-[10px] font-bold text-rose-300 bg-rose-500/20 px-1.5 py-0.5 rounded border border-rose-500/40 inline-flex items-center gap-1">
                             <ShieldAlert className="h-3 w-3" />
                             Alerta Manipulación
+                          </span>
+                        ) : isInspectionIncomplete ? (
+                          <span className="text-[10px] font-bold text-amber-300 bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-400/40 inline-flex items-center gap-1">
+                            <ShieldAlert className="h-3 w-3" />
+                            Inspección incompleta
                           </span>
                         ) : (
                           <span className="text-[10px] font-bold text-[#00F5D4] bg-cyan-500/20 px-1.5 py-0.5 rounded border border-cyan-400/40 inline-flex items-center gap-1">

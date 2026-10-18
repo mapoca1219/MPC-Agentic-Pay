@@ -19,6 +19,10 @@ import {
   type CorporatePolicyConfig,
 } from '../utils/financialRules';
 import type { HistoryItem } from './ExtractionHistory';
+import {
+  buildPrivacySafeReport,
+  serializePrivacySafeReportCsv,
+} from '../utils/privacySafeReport';
 
 interface ChallengeSuccessKPIsProps {
   history: HistoryItem[];
@@ -94,33 +98,8 @@ export const ChallengeSuccessKPIs: React.FC<ChallengeSuccessKPIsProps> = ({
   const fxRates = policy.fxRates ?? FX_RATES_PER_USD;
 
   const handleExportMonthlyReconciliationCSV = () => {
-    const headers = [
-      'Fecha',
-      'Factura',
-      'Beneficiario',
-      'Monto Original',
-      'Monto USD',
-      'Decisión',
-      'Explicación',
-    ];
-
-    const escapeCsv = (val: string | number) => `"${String(val ?? '').replaceAll('"', '""')}"`;
-
-    const lines = [
-      headers.map(escapeCsv).join(','),
-      ...decisions.map((d) => {
-        return [
-          d.triggeredRule,
-          d.amountUsd.toFixed(2),
-          d.decisionCode,
-          d.explanation,
-        ]
-          .map(escapeCsv)
-          .join(',');
-      }),
-    ];
-
-    const csvContent = '\uFEFF' + lines.join('\r\n');
+    const report = buildPrivacySafeReport(decisions.map((decision) => decision.decisionCode));
+    const csvContent = serializePrivacySafeReportCsv(report);
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

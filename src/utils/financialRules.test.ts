@@ -88,6 +88,18 @@ test('detectPromptInjection: identifies Spanish adversarial prompt injection ins
   assert.ok(audit.ignoredCommands.length >= 2);
 });
 
+test('evaluateGovernanceDecision: escalates when prompt-injection inspection is incomplete', () => {
+  const result = parseDocumentDeterministically(
+    'Proveedor: Proveedor Demo Colombia\nTotal: 300 USD'
+  );
+  result.securityAudit.promptInjectionScanComplete = false;
+  result.governanceDecision = undefined;
+
+  const decision = evaluateGovernanceDecision(result);
+  assert.equal(decision.decisionCode, 'ESCALATED');
+  assert.equal(decision.triggeredRule, 'Revisión de seguridad incompleta');
+});
+
 test('identifyMissingCriticalFields: flags missing identifiers without guessing', () => {
   const missing = identifyMissingCriticalFields({
     vendorName: 'Acme Corp',
