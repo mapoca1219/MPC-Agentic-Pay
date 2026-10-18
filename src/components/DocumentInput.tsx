@@ -28,6 +28,16 @@ interface DocumentInputProps {
   isLoading: boolean;
 }
 
+function getScenarioBadgeDarkClass(category: SampleInvoice['category']): string {
+  if (category === 'valid_usd' || category === 'valid_latam_cop') {
+    return 'bg-emerald-500/20 text-[#00F5D4] border-cyan-400/40';
+  }
+  if (category === 'duplicate' || category === 'injection') {
+    return 'bg-rose-500/20 text-rose-300 border-rose-500/40';
+  }
+  return 'bg-amber-500/20 text-amber-300 border-amber-400/40';
+}
+
 export const DocumentInput: React.FC<DocumentInputProps> = ({
   selectedSample,
   customText,
@@ -103,39 +113,39 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
   const renderFormatIcon = (format: SampleInvoice['visualFormat']) => {
     switch (format) {
       case 'pdf':
-        return <FileText className="h-3 w-3 text-indigo-600 shrink-0" />;
+        return <FileText className="h-3 w-3 text-purple-400 shrink-0" />;
       case 'chat':
-        return <MessageSquare className="h-3 w-3 text-teal-600 shrink-0" />;
+        return <MessageSquare className="h-3 w-3 text-[#00F5D4] shrink-0" />;
       case 'image':
-        return <ImageIcon className="h-3 w-3 text-purple-600 shrink-0" />;
+        return <ImageIcon className="h-3 w-3 text-pink-400 shrink-0" />;
       case 'email':
-        return <Mail className="h-3 w-3 text-sky-600 shrink-0" />;
+        return <Mail className="h-3 w-3 text-cyan-400 shrink-0" />;
     }
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
+    <div className="bg-[#111827]/90 backdrop-blur-md rounded-2xl border border-slate-800/80 shadow-xl overflow-hidden">
       {/* Header & Mode Switcher */}
-      <div className="border-b border-slate-200 bg-slate-50/80 p-3 sm:px-4 flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          <div className="h-6 w-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+      <div className="border-b border-slate-800/80 bg-[#131B2E]/90 p-3 sm:px-4 flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2.5">
+          <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-purple-600 to-cyan-500 text-white flex items-center justify-center shadow-md shadow-cyan-500/20">
             <Zap className="h-3.5 w-3.5" />
           </div>
           <div>
-            <h3 className="text-xs font-extrabold text-slate-900 tracking-tight">
-              Simulador de Entrada Multicanal (9 Escenarios en 1 Clic)
+            <h3 className="text-xs sm:text-sm font-extrabold text-slate-100 tracking-tight">
+              Simulador Multicanal (9 Escenarios en 1 Clic)
             </h3>
           </div>
         </div>
 
-        <div className="flex items-center gap-1 bg-slate-200/75 p-0.5 rounded-xl">
+        <div className="flex items-center gap-1 bg-[#0D1322] p-1 rounded-xl border border-slate-800">
           <button
             type="button"
             onClick={() => setActiveTab('samples')}
             className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
               activeTab === 'samples'
-                ? 'bg-white text-indigo-700 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-100'
             }`}
           >
             <Layers className="h-3 w-3" />
@@ -147,8 +157,8 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
             onClick={() => setActiveTab('upload')}
             className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
               activeTab === 'upload'
-                ? 'bg-white text-indigo-700 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-100'
             }`}
           >
             <Upload className="h-3 w-3" />
@@ -160,8 +170,8 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
             onClick={() => setActiveTab('text')}
             className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
               activeTab === 'text'
-                ? 'bg-white text-indigo-700 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-100'
             }`}
           >
             <FileText className="h-3 w-3" />
@@ -170,10 +180,10 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="p-3.5 space-y-3">
-        {/* TAB 1: 9 SCENARIOS IN 1 CLICK */}
+      <form onSubmit={handleSubmit} className="p-3.5 sm:p-4 space-y-3.5">
+        {/* TAB 1: 9 SCENARIOS IN 1 CLICK (Taller cards, zero title truncation, neon cyan ring when active) */}
         {activeTab === 'samples' && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             {SAMPLE_INVOICES.map((sample) => {
               const isSelected = selectedSample?.id === sample.id;
               return (
@@ -181,37 +191,44 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
                   key={sample.id}
                   type="button"
                   onClick={() => handleSampleClick(sample)}
-                  className={`text-left p-2.5 rounded-xl border text-xs transition-all flex flex-col justify-between gap-1.5 cursor-pointer relative ${
+                  className={`text-left p-3 min-h-[96px] rounded-xl border text-xs transition-all flex flex-col justify-between gap-2 cursor-pointer relative ${
                     isSelected
-                      ? 'border-indigo-600 bg-indigo-50/60 shadow-sm ring-2 ring-indigo-500/20'
-                      : 'border-slate-200 bg-white hover:border-indigo-300 hover:bg-slate-50/60'
+                      ? 'ring-2 ring-cyan-400 bg-[#1C2841] border-cyan-400/60 shadow-[0_0_18px_rgba(0,245,212,0.2)]'
+                      : 'border-slate-800/90 bg-[#161F33] hover:border-purple-500/50 hover:bg-[#1A253D]'
                   }`}
                 >
-                  <div className="flex items-center justify-between gap-1">
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border truncate ${sample.tagColor}`}>
+                  <div className="flex items-center justify-between gap-1.5 w-full">
+                    <span
+                      className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${getScenarioBadgeDarkClass(
+                        sample.category
+                      )}`}
+                    >
                       {sample.tag}
                     </span>
-                    <span className="inline-flex items-center gap-1 text-[9px] font-mono font-semibold text-slate-600 bg-slate-100 px-1 py-0.5 rounded border border-slate-200 shrink-0">
+                    <span className="inline-flex items-center gap-1 text-[9px] font-mono font-semibold text-slate-300 bg-[#0D1322] px-1.5 py-0.5 rounded border border-slate-700/80 shrink-0">
                       {renderFormatIcon(sample.visualFormat)}
                       {sample.visualFormat.toUpperCase()}
                     </span>
                   </div>
-                  <h4 className="font-bold text-[11px] text-slate-900 leading-snug flex items-center justify-between gap-1">
-                    <span className="line-clamp-2">{sample.title}</span>
+
+                  <div className="flex items-start justify-between gap-1.5 w-full">
+                    <span className="font-bold text-[11px] text-slate-100 leading-snug break-words">
+                      {sample.title}
+                    </span>
                     {(sample.category === 'injection' || sample.category === 'duplicate') && (
-                      <ShieldAlert className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                      <ShieldAlert className="h-3.5 w-3.5 text-rose-400 shrink-0 mt-0.5" />
                     )}
                     {(sample.category === 'unlisted_vendor' ||
                       sample.category === 'agreement_mismatch' ||
                       sample.category === 'exceeds_limit' ||
                       sample.category === 'exceeds_budget' ||
                       sample.category === 'bank_account_mismatch') && (
-                      <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                      <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
                     )}
                     {(sample.category === 'valid_usd' || sample.category === 'valid_latam_cop') && (
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                      <CheckCircle2 className="h-3.5 w-3.5 text-[#00F5D4] shrink-0 mt-0.5" />
                     )}
-                  </h4>
+                  </div>
                 </button>
               );
             })}
@@ -233,37 +250,37 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
             {!uploadedFile ? (
               <label
                 htmlFor="file-upload-input"
-                className="border-2 border-dashed border-slate-300 hover:border-indigo-500 hover:bg-indigo-50/20 rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all group"
+                className="border-2 border-dashed border-slate-700 hover:border-cyan-400/60 bg-[#0D1322] hover:bg-[#131B2E] rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all group"
               >
-                <div className="h-12 w-12 rounded-2xl bg-indigo-50 group-hover:bg-indigo-100 flex items-center justify-center text-indigo-600 mb-2 transition-colors">
+                <div className="h-12 w-12 rounded-2xl bg-purple-500/20 border border-purple-500/40 group-hover:border-cyan-400/60 flex items-center justify-center text-[#00F5D4] mb-2 transition-colors">
                   <Upload className="h-6 w-6" />
                 </div>
-                <h4 className="text-xs font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                <h4 className="text-xs font-bold text-slate-100 group-hover:text-[#00F5D4] transition-colors">
                   Haz clic para subir o arrastra una factura (PDF / Imagen)
                 </h4>
-                <p className="text-[11px] text-slate-500 mt-0.5">
+                <p className="text-[11px] text-slate-400 mt-0.5">
                   Blinka Sentinel AI extraerá los datos y verificará todas las reglas de pago.
                 </p>
               </label>
             ) : (
-              <div className="border border-slate-200 rounded-2xl p-3 bg-slate-50 flex items-center justify-between gap-3">
+              <div className="border border-cyan-400/40 rounded-2xl p-3 bg-[#0D1322] flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   {uploadedFile.previewUrl ? (
                     <img
                       src={uploadedFile.previewUrl}
                       alt="Vista previa"
-                      className="h-12 w-12 object-cover rounded-xl border border-slate-200"
+                      className="h-12 w-12 object-cover rounded-xl border border-slate-700"
                     />
                   ) : (
-                    <div className="h-12 w-12 rounded-xl bg-red-100 border border-red-200 flex items-center justify-center text-red-600 shrink-0 font-bold text-xs uppercase">
+                    <div className="h-12 w-12 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-300 shrink-0 font-bold text-xs uppercase">
                       PDF
                     </div>
                   )}
                   <div className="min-w-0">
-                    <p className="text-xs font-bold text-slate-900 truncate">
+                    <p className="text-xs font-bold text-slate-100 truncate">
                       {uploadedFile.file.name}
                     </p>
-                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md mt-1 border border-emerald-200">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#00F5D4] bg-cyan-950/60 px-2 py-0.5 rounded-md mt-1 border border-cyan-400/40">
                       <FileCheck2 className="h-3 w-3" />
                       Listo para auditoría con Blinka Sentinel AI
                     </span>
@@ -273,7 +290,7 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
                 <button
                   type="button"
                   onClick={handleRemoveFile}
-                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                  className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
                   title="Eliminar archivo"
                   aria-label="Eliminar archivo"
                 >
@@ -287,8 +304,8 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
         {/* TAB 3: RAW TEXT / EMAIL / CHAT */}
         {activeTab === 'text' && (
           <div className="space-y-1.5">
-            <div className="flex items-center justify-between text-xs text-slate-600">
-              <span className="font-semibold text-slate-700 text-[11px]">
+            <div className="flex items-center justify-between text-xs text-slate-300">
+              <span className="font-semibold text-slate-200 text-[11px]">
                 Pega o edita cualquier correo, factura o mensaje de WhatsApp:
               </span>
               <span className="text-slate-400 font-mono text-[10px]">
@@ -300,7 +317,7 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
               value={customText}
               onChange={(e) => onCustomTextChange(e.target.value)}
               rows={5}
-              className="w-full rounded-xl border border-slate-300 bg-slate-50/60 p-2.5 font-mono text-xs text-slate-800 focus:bg-white focus:border-indigo-500 transition-all resize-y leading-relaxed"
+              className="w-full rounded-xl border border-slate-700/90 bg-[#0D1322] p-3 font-mono text-xs text-slate-100 focus:border-cyan-400 focus:outline-none transition-all resize-y leading-relaxed"
               placeholder="Ejemplo: 'Hola equipo, les paso la cuenta de cobro por $300 USD...'"
               required
             />
@@ -308,8 +325,8 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
         )}
 
         {/* Action Bar */}
-        <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-slate-100">
-          <span className="text-[11px] text-slate-500">
+        <div className="pt-2.5 flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-slate-800/80">
+          <span className="text-[11px] text-slate-400">
             Haz clic en cualquier escenario o presiona el botón para escanear:
           </span>
 
@@ -320,7 +337,7 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
               (activeTab === 'upload' && !uploadedFile) ||
               (activeTab !== 'upload' && !customText.trim())
             }
-            className="w-full sm:w-auto px-4 py-2 rounded-xl font-bold text-xs text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+            className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 hover:from-purple-500 hover:to-cyan-400 text-white font-semibold shadow-lg shadow-cyan-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
           >
             {isLoading ? (
               <>

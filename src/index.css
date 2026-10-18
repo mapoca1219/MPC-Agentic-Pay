@@ -1,1 +1,21 @@
 @import "tailwindcss";
+
+@layer base {
+  body {
+    background-color: #0B0F19;
+    color: #F1F5F9;
+  }
+}
+
+@keyframes floatSlow {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.animate-float-slow {
+  animation: floatSlow 3s ease-in-out infinite;
+}

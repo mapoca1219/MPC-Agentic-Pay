@@ -120,13 +120,13 @@ export const PolicyRulesPanel: React.FC<PolicyRulesPanelProps> = ({
   return (
     <div className="space-y-5">
       {/* Header Banner */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="bg-[#111827]/90 backdrop-blur-md rounded-2xl border border-slate-800/80 p-4 sm:p-5 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-sm sm:text-base font-extrabold text-slate-900 flex items-center gap-2">
-            <Sliders className="h-4 w-4 text-indigo-600" />
+          <h2 className="text-sm sm:text-base font-extrabold text-slate-100 flex items-center gap-2">
+            <Sliders className="h-4 w-4 text-[#00F5D4]" />
             ⚙️ Configuración en Vivo de Reglas, Presupuesto y Lista Blanca
           </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-slate-400 mt-0.5">
             Ajusta los límites o edita un proveedor: Blinky re-evaluará instantáneamente todas las
             facturas en el Simulador y en el Tablero Kanban.
           </p>
@@ -135,7 +135,7 @@ export const PolicyRulesPanel: React.FC<PolicyRulesPanelProps> = ({
         <button
           type="button"
           onClick={onResetPolicy}
-          className="px-3.5 py-2 rounded-xl text-xs font-bold border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
+          className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 text-white shadow-lg shadow-cyan-500/20 flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
         >
           <RotateCcw className="h-3.5 w-3.5" />
           Restaurar Reglas Oficiales del Reto
@@ -145,22 +145,22 @@ export const PolicyRulesPanel: React.FC<PolicyRulesPanelProps> = ({
       {/* Sliders: Autonomous Limit + Monthly Budget + FX Rates */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Sliders Card */}
-        <div className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-sm space-y-5">
-          <h3 className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-800 flex items-center gap-2">
-            <DollarSign className="h-4 w-4 text-emerald-600" />
+        <div className="bg-[#111827]/90 backdrop-blur-md rounded-2xl border border-slate-800/80 p-4 sm:p-5 shadow-xl space-y-5">
+          <h3 className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+            <DollarSign className="h-4 w-4 text-[#00F5D4]" />
             Límites Financieros de Aprobación Autónoma (USD)
           </h3>
 
           {/* Slider 1: Max Amount Without Approval */}
-          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+          <div className="p-3.5 rounded-xl bg-[#0D1322] border border-slate-800 space-y-2">
             <div className="flex items-center justify-between">
               <label
                 htmlFor="slider-autonomous-limit"
-                className="text-xs font-bold text-slate-800"
+                className="text-xs font-bold text-slate-200"
               >
                 Límite de Pago Autónomo sin Permiso Humano:
               </label>
-              <span className="font-mono text-sm font-black text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-lg border border-indigo-200">
+              <span className="font-mono text-sm font-black text-purple-300 bg-purple-500/20 px-2.5 py-0.5 rounded-lg border border-purple-500/40">
                 ${policy.maxAmountWithoutApprovalUsd.toLocaleString('en-US')} USD
               </span>
             </div>
@@ -172,7 +172,7 @@ export const PolicyRulesPanel: React.FC<PolicyRulesPanelProps> = ({
               step={50}
               value={policy.maxAmountWithoutApprovalUsd}
               onChange={(e) => handleLimitChange(Number(e.target.value))}
-              className="w-full accent-indigo-600 cursor-pointer"
+              className="w-full accent-purple-500 cursor-pointer"
             />
             <div className="flex justify-between text-[10px] font-mono text-slate-400">
               <span>$50 USD (Estricto)</span>
@@ -182,12 +182,12 @@ export const PolicyRulesPanel: React.FC<PolicyRulesPanelProps> = ({
           </div>
 
           {/* Slider 2: Monthly Budget */}
-          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+          <div className="p-3.5 rounded-xl bg-[#0D1322] border border-slate-800 space-y-2">
             <div className="flex items-center justify-between">
-              <label htmlFor="slider-monthly-budget" className="text-xs font-bold text-slate-800">
+              <label htmlFor="slider-monthly-budget" className="text-xs font-bold text-slate-200">
                 Presupuesto Mensual Corporativo Total:
               </label>
-              <span className="font-mono text-sm font-black text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-lg border border-emerald-200">
+              <span className="font-mono text-sm font-black text-[#00F5D4] bg-cyan-500/20 px-2.5 py-0.5 rounded-lg border border-cyan-400/40">
                 ${policy.maxMonthlyBudgetUsd.toLocaleString('en-US')} USD
               </span>
             </div>
@@ -199,11 +199,11 @@ export const PolicyRulesPanel: React.FC<PolicyRulesPanelProps> = ({
               step={250}
               value={policy.maxMonthlyBudgetUsd}
               onChange={(e) => handleBudgetChange(Number(e.target.value))}
-              className="w-full accent-emerald-600 cursor-pointer"
+              className="w-full accent-cyan-400 cursor-pointer"
             />
-            <div className="flex justify-between text-[10px] font-mono text-slate-500">
+            <div className="flex justify-between text-[10px] font-mono text-slate-400">
               <span>Ejecutado este mes: ${policy.currentMonthSpentUsd} USD</span>
-              <span className="font-bold text-emerald-700">
+              <span className="font-bold text-[#00F5D4]">
                 Saldo disponible: ${remainingBudget.toLocaleString('en-US')} USD
               </span>
             </div>
@@ -211,13 +211,13 @@ export const PolicyRulesPanel: React.FC<PolicyRulesPanelProps> = ({
         </div>
 
         {/* Multi-Currency FX Rates Card */}
-        <div className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-sm space-y-4">
+        <div className="bg-[#111827]/90 backdrop-blur-md rounded-2xl border border-slate-800/80 p-4 sm:p-5 shadow-xl space-y-4">
           <div>
-            <h3 className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-800 flex items-center gap-2">
-              <Globe className="h-4 w-4 text-indigo-600" />
+            <h3 className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+              <Globe className="h-4 w-4 text-purple-400" />
               Tasas de Conversión Multimoneda (EE. UU. → LATAM)
             </h3>
-            <p className="text-[11px] text-slate-500 mt-0.5">
+            <p className="text-[11px] text-slate-400 mt-0.5">
               Equivalencia de 1.00 USD en moneda local para normalizar cuentas de cobro antes de
               evaluar reglas.
             </p>
@@ -227,11 +227,11 @@ export const PolicyRulesPanel: React.FC<PolicyRulesPanelProps> = ({
             {(['COP', 'MXN', 'BRL', 'ARS', 'EUR'] as const).map((curr) => (
               <div
                 key={curr}
-                className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1"
+                className="p-3 rounded-xl bg-[#0D1322] border border-slate-800 space-y-1"
               >
                 <label
                   htmlFor={`fx-input-${curr}`}
-                  className="text-[11px] font-bold text-slate-700 block"
+                  className="text-[11px] font-bold text-slate-300 block"
                 >
                   1 USD → {curr}
                 </label>
@@ -241,7 +241,7 @@ export const PolicyRulesPanel: React.FC<PolicyRulesPanelProps> = ({
                   step="any"
                   value={fxRates[curr] ?? FX_RATES_PER_USD[curr]}
                   onChange={(e) => handleFxChange(curr, Number.parseFloat(e.target.value))}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 font-mono text-xs font-bold text-slate-900 focus:border-indigo-500 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-700 bg-[#131B2E] px-2.5 py-1.5 font-mono text-xs font-bold text-[#00F5D4] focus:border-cyan-400 focus:outline-none"
                 />
               </div>
             ))}
@@ -250,24 +250,24 @@ export const PolicyRulesPanel: React.FC<PolicyRulesPanelProps> = ({
       </div>
 
       {/* Editable Whitelisted Vendors Table */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+      <div className="bg-[#111827]/90 backdrop-blur-md rounded-2xl border border-slate-800/80 p-4 sm:p-5 shadow-xl space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
           <div>
-            <h3 className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-900 flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-emerald-600" />
+            <h3 className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-100 flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-[#00F5D4]" />
               Lista Blanca de Proveedores y Cuentas Bancarias Oficiales (
               {policy.whitelistedVendors.length})
             </h3>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-[11px] text-slate-400">
               Edita el monto acordado en USD o la cuenta bancaria oficial registrada para probar la
               protección anti-fraude en vivo.
             </p>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto rounded-xl border border-slate-800 bg-[#0D1322]">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-100 text-slate-600 text-[10px] uppercase border-b border-slate-200">
+            <thead className="bg-[#131B2E] text-slate-300 text-[10px] uppercase border-b border-slate-800">
               <tr>
                 <th className="py-2.5 px-3">Proveedor Autorizado</th>
                 <th className="py-2.5 px-3">Categoría</th>
@@ -277,14 +277,14 @@ export const PolicyRulesPanel: React.FC<PolicyRulesPanelProps> = ({
                 <th className="py-2.5 px-3 text-right">Acción</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200/80">
+            <tbody className="divide-y divide-slate-800/80">
               {policy.whitelistedVendors.map((vendor) => (
-                <tr key={vendor.id} className="hover:bg-slate-50/80">
-                  <td className="py-2.5 px-3 font-bold text-slate-900 flex items-center gap-2">
-                    <Building2 className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
+                <tr key={vendor.id} className="hover:bg-[#131B2E]/80">
+                  <td className="py-2.5 px-3 font-bold text-slate-100 flex items-center gap-2">
+                    <Building2 className="h-3.5 w-3.5 text-purple-400 shrink-0" />
                     <span>{vendor.displayName}</span>
                   </td>
-                  <td className="py-2.5 px-3 text-slate-600">{vendor.category}</td>
+                  <td className="py-2.5 px-3 text-slate-300">{vendor.category}</td>
                   <td className="py-2.5 px-3">
                     <select
                       aria-label={`País de ${vendor.displayName}`}
@@ -292,7 +292,7 @@ export const PolicyRulesPanel: React.FC<PolicyRulesPanelProps> = ({
                       onChange={(e) =>
                         handleVendorFieldChange(vendor.id, 'country', e.target.value)
                       }
-                      className="rounded-lg border border-slate-300 bg-white px-2 py-1 font-mono text-xs font-bold text-slate-800"
+                      className="rounded-lg border border-slate-700 bg-[#131B2E] px-2 py-1 font-mono text-xs font-bold text-slate-100"
                     >
                       <option value="US">US</option>
                       <option value="CO">CO</option>
@@ -311,7 +311,7 @@ export const PolicyRulesPanel: React.FC<PolicyRulesPanelProps> = ({
                         onChange={(e) =>
                           handleVendorFieldChange(vendor.id, 'agreedAmountUsd', e.target.value)
                         }
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1 font-mono text-xs font-bold text-indigo-700"
+                        className="w-full rounded-lg border border-slate-700 bg-[#131B2E] px-2 py-1 font-mono text-xs font-bold text-[#00F5D4]"
                       />
                     </div>
                   </td>
@@ -325,7 +325,7 @@ export const PolicyRulesPanel: React.FC<PolicyRulesPanelProps> = ({
                         onChange={(e) =>
                           handleVendorFieldChange(vendor.id, 'registeredAccount', e.target.value)
                         }
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1 font-mono text-xs text-slate-900"
+                        className="w-full rounded-lg border border-slate-700 bg-[#131B2E] px-2 py-1 font-mono text-xs text-slate-100"
                       />
                     </div>
                   </td>
@@ -333,7 +333,7 @@ export const PolicyRulesPanel: React.FC<PolicyRulesPanelProps> = ({
                     <button
                       type="button"
                       onClick={() => handleRemoveVendor(vendor.id)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 cursor-pointer transition-colors"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 cursor-pointer transition-colors"
                       title="Eliminar de lista blanca"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -348,12 +348,12 @@ export const PolicyRulesPanel: React.FC<PolicyRulesPanelProps> = ({
         {/* Add New Whitelisted Vendor Form */}
         <form
           onSubmit={handleAddVendor}
-          className="pt-3 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-5 gap-2.5 items-end"
+          className="pt-3 border-t border-slate-800 grid grid-cols-1 sm:grid-cols-5 gap-2.5 items-end"
         >
           <div className="sm:col-span-2">
             <label
               htmlFor="new-vendor-name"
-              className="text-[11px] font-bold text-slate-700 block mb-1"
+              className="text-[11px] font-bold text-slate-300 block mb-1"
             >
               Agregar Proveedor a Lista Blanca (ej. Estudio Creativo Austral):
             </label>
@@ -363,13 +363,13 @@ export const PolicyRulesPanel: React.FC<PolicyRulesPanelProps> = ({
               value={newVendorName}
               onChange={(e) => setNewVendorName(e.target.value)}
               placeholder="Nombre del proveedor..."
-              className="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs"
+              className="w-full rounded-xl border border-slate-700 bg-[#0D1322] text-slate-100 px-3 py-2 text-xs"
             />
           </div>
           <div>
             <label
               htmlFor="new-vendor-amount"
-              className="text-[11px] font-bold text-slate-700 block mb-1"
+              className="text-[11px] font-bold text-slate-300 block mb-1"
             >
               Acuerdo (USD):
             </label>
@@ -378,13 +378,13 @@ export const PolicyRulesPanel: React.FC<PolicyRulesPanelProps> = ({
               type="number"
               value={newVendorAmount}
               onChange={(e) => setNewVendorAmount(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 px-3 py-1.5 font-mono text-xs"
+              className="w-full rounded-xl border border-slate-700 bg-[#0D1322] text-[#00F5D4] px-3 py-2 font-mono text-xs"
             />
           </div>
           <div>
             <label
               htmlFor="new-vendor-account"
-              className="text-[11px] font-bold text-slate-700 block mb-1"
+              className="text-[11px] font-bold text-slate-300 block mb-1"
             >
               Cuenta Oficial:
             </label>
@@ -394,13 +394,13 @@ export const PolicyRulesPanel: React.FC<PolicyRulesPanelProps> = ({
                 type="text"
                 value={newVendorAccount}
                 onChange={(e) => setNewVendorAccount(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-2.5 py-1.5 font-mono text-xs"
+                className="w-full rounded-xl border border-slate-700 bg-[#0D1322] text-slate-100 px-2.5 py-2 font-mono text-xs"
               />
               <select
                 aria-label="País nuevo proveedor"
                 value={newVendorCountry}
                 onChange={(e) => setNewVendorCountry(e.target.value as BlinkaCountryCode)}
-                className="rounded-xl border border-slate-300 px-2 py-1.5 font-mono text-xs"
+                className="rounded-xl border border-slate-700 bg-[#0D1322] text-slate-100 px-2 py-2 font-mono text-xs"
               >
                 <option value="US">US</option>
                 <option value="CO">CO</option>
@@ -412,7 +412,7 @@ export const PolicyRulesPanel: React.FC<PolicyRulesPanelProps> = ({
           </div>
           <button
             type="submit"
-            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+            className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 text-white font-semibold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-cyan-500/20"
           >
             <Plus className="h-4 w-4" />
             Autorizar Proveedor

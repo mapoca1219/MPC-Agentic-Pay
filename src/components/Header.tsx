@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  ShieldCheck,
   Zap,
   Kanban,
   Sliders,
@@ -8,12 +7,13 @@ import {
   CheckCircle2,
   DollarSign,
 } from 'lucide-react';
+import logoImg from '../assets/logo.png';
 
 export type AppViewTab = 'simulator' | 'kanban' | 'rules' | 'reconciliation';
 
 interface HeaderProps {
   activeView: AppViewTab;
-  onSelectView: (view: AppViewTab) => void;
+  onSelectView?: (view: AppViewTab) => void;
   autonomyPercent?: number;
   escalatedCount?: number;
   remainingBudgetUsd?: number;
@@ -43,7 +43,7 @@ export const Header: React.FC<HeaderProps> = ({
       label: '📋 Tablero de Decisiones (Kanban)',
       icon: Kanban,
       badge: escalatedCount > 0 ? `${escalatedCount} pendientes` : undefined,
-      badgeStyle: 'bg-amber-100 text-amber-900 border-amber-300',
+      badgeStyle: 'bg-amber-500/20 text-amber-300 border-amber-400/50',
     },
     {
       id: 'rules',
@@ -58,41 +58,47 @@ export const Header: React.FC<HeaderProps> = ({
   ];
 
   return (
-    <header className="border-b border-slate-200 bg-white/95 backdrop-blur-sm sticky top-0 z-40 shadow-sm">
+    <header className="border-b border-slate-800/80 bg-[#0B0F19]/90 backdrop-blur-md sticky top-0 z-40 shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 space-y-2.5">
-        {/* Top Row: Brand + Live Sentinel Status Pills */}
+        {/* Top Row: Official Logo + Brand + Live Sentinel Status Pills */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2.5">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-sm">
-              <ShieldCheck className="h-6 w-6" />
+          <div className="flex items-center gap-3.5">
+            <div className="relative shrink-0">
+              <img
+                src={logoImg}
+                alt="Blinky - El Suricato Centinela Logo Oficial"
+                className="h-12 w-12 rounded-xl object-cover border border-cyan-400/50 shadow-[0_0_15px_rgba(0,245,212,0.3)] hover:scale-105 transition-transform duration-300"
+              />
+              <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-[#00F5D4] ring-2 ring-[#0B0F19]" />
             </div>
+
             <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[11px] font-bold tracking-wider uppercase px-2.5 py-0.5 rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-[0_0_10px_rgba(168,85,247,0.2)]">
                   Blinka Sentinel AI
                 </span>
-                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#00F5D4] bg-cyan-950/60 px-2.5 py-0.5 rounded-full border border-cyan-400/40">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#00F5D4] animate-pulse" />
                   Blinky Guardián Activo
                 </span>
               </div>
-              <h1 className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight">
+              <h1 className="text-base sm:text-lg font-extrabold text-slate-100 tracking-tight mt-0.5">
                 Gobernanza y Pagos Corporativos Autónomos (US → LATAM)
               </h1>
             </div>
           </div>
 
           <div className="flex items-center flex-wrap gap-2 text-xs">
-            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50/70 text-indigo-900 border border-indigo-200 rounded-lg font-semibold">
-              <Zap className="h-3.5 w-3.5 text-indigo-600" />
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#131B2E] text-purple-200 border border-purple-500/40 rounded-xl font-semibold shadow-sm">
+              <Zap className="h-3.5 w-3.5 text-purple-400" />
               <span>Autonomía: {autonomyPercent}%</span>
             </div>
-            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg font-semibold">
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#131B2E] text-[#00F5D4] border border-cyan-400/40 rounded-xl font-semibold shadow-sm">
+              <CheckCircle2 className="h-3.5 w-3.5 text-[#00F5D4]" />
               <span>0 Pagos Indebidos</span>
             </div>
-            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-800 border border-slate-200 rounded-lg font-mono font-bold">
-              <DollarSign className="h-3.5 w-3.5 text-emerald-600" />
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#0D1322] text-slate-100 border border-slate-700/80 rounded-xl font-mono font-bold shadow-sm">
+              <DollarSign className="h-3.5 w-3.5 text-[#00F5D4]" />
               <span>Saldo: ${remainingBudgetUsd.toLocaleString('en-US')} USD</span>
             </div>
           </div>
@@ -102,7 +108,7 @@ export const Header: React.FC<HeaderProps> = ({
         {onSelectView && (
           <nav
             aria-label="Navegación Principal de Vistas"
-            className="flex items-center gap-1.5 overflow-x-auto pt-1 border-t border-slate-100"
+            className="flex items-center gap-2 overflow-x-auto pt-2 border-t border-slate-800/80"
           >
             {navItems.map((tab) => {
               const isActive = activeView === tab.id;
@@ -111,17 +117,19 @@ export const Header: React.FC<HeaderProps> = ({
                   key={tab.id}
                   type="button"
                   onClick={() => onSelectView(tab.id)}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap border ${
+                  className={`px-4 py-2 rounded-xl text-xs transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap border ${
                     isActive
-                      ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-                      : 'bg-slate-50 text-slate-600 border-slate-200/80 hover:bg-slate-100 hover:text-slate-900'
+                      ? 'bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 text-white font-semibold border-cyan-400/50 shadow-lg shadow-cyan-500/20'
+                      : 'bg-[#131B2E]/90 text-slate-300 font-bold border-slate-800/80 hover:bg-[#192339] hover:text-white hover:border-cyan-400/40'
                   }`}
                 >
                   <span>{tab.label}</span>
                   {tab.badge && (
                     <span
                       className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-md border ${
-                        tab.badgeStyle ?? ''
+                        isActive
+                          ? 'bg-slate-950/60 text-amber-300 border-amber-400/60'
+                          : (tab.badgeStyle ?? '')
                       }`}
                     >
                       {tab.badge}

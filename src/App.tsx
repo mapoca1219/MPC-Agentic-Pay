@@ -253,7 +253,7 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-100/80 text-slate-900 font-sans antialiased flex flex-col selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen bg-[#0B0F19] text-slate-100 font-sans antialiased flex flex-col selection:bg-cyan-500 selection:text-slate-950">
       <Header
         activeView={activeView}
         onSelectView={setActiveView}
@@ -265,15 +265,15 @@ export default function App() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-4">
         {/* Error notification if any */}
         {errorMessage && (
-          <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center justify-between gap-3">
+          <div className="p-3.5 rounded-xl bg-rose-950/80 border border-rose-500/50 text-rose-200 text-xs flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+              <AlertCircle className="h-4 w-4 text-rose-400 shrink-0" />
               <span>{errorMessage}</span>
             </div>
             <button
               type="button"
               onClick={() => setErrorMessage(null)}
-              className="text-red-600 hover:text-red-900 font-bold px-2 py-1 rounded cursor-pointer"
+              className="text-rose-300 hover:text-white font-bold px-2 py-1 rounded cursor-pointer"
             >
               Cerrar
             </button>
@@ -365,11 +365,13 @@ export default function App() {
         )}
       </main>
 
-      <footer className="border-t border-slate-200 bg-white py-3 text-center text-xs text-slate-500">
+      <footer className="border-t border-slate-800/80 bg-[#0B0F19] py-3 text-center text-xs text-slate-400">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>Blinka Sentinel AI • Sistema de Gobernanza de Pagos Corporativos</span>
-          <span className="font-mono text-[11px] text-slate-400">
-            🦊 Blinky Guardián • Smart Rail Routing • Validación Cuenta Histórica • Aprobación CFO
+          <span className="text-slate-300 font-semibold">
+            Blinka Sentinel AI • Sistema de Gobernanza de Pagos Corporativos
+          </span>
+          <span className="font-mono text-[11px] text-[#00F5D4]">
+            Blinky Guardián • Smart Rail Routing • Validación Cuenta Histórica • Aprobación CFO
           </span>
         </div>
       </footer>
