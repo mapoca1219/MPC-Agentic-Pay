@@ -39,17 +39,16 @@ export function getAvailableGeminiFlashModels(
     .map((model) => model.name?.replace(/^models\//, ''))
     .filter((name): name is string => Boolean(name));
   const preferred = preferredModel?.replace(/^models\//, '');
-  const flashModels = [...new Set(availableModels)].filter(
-    (name) =>
-      /flash/i.test(name) &&
-      !/(image|audio|live|tts|embedding)/i.test(name),
-  );
+  const freeTierFlashModels = [
+    'gemini-3.8-flash',
+    'gemini-2.5-flash-lite',
+    'gemini-2.5-flash',
+  ];
+  const flashModels = freeTierFlashModels.filter((name) => availableModels.includes(name));
   const priority = (name: string): number => {
-    if (/gemini-3\.8-flash(?:-|$)/i.test(name)) return 0;
-    if (/gemini-2\.5-flash-lite(?:-|$)/i.test(name)) return 1;
-    if (/gemini-2\.5-flash(?:-|$)/i.test(name)) return 2;
-    if (/flash-lite/i.test(name)) return 3;
-    return 4;
+    if (name === 'gemini-3.8-flash') return 0;
+    if (name === 'gemini-2.5-flash-lite') return 1;
+    return 2;
   };
 
   return [...new Set([
