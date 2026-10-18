@@ -24,6 +24,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+app.disable('x-powered-by');
 const port = 3000;
 
 app.use(express.json({ limit: '50mb' }));
@@ -44,20 +45,25 @@ function getGeminiClient(): GoogleGenAI | null {
   });
 }
 
+const TESSERACT_BIN_PATH = '/opt/homebrew/bin/tesseract';
+
 function runLocalImageOcr(fileData?: { base64?: string; mimeType?: string }): string {
   if (!fileData?.base64 || !fileData.mimeType?.startsWith('image/')) {
     return '';
   }
+  if (!fs.existsSync(TESSERACT_BIN_PATH)) {
+    return '';
+  }
+  const cacheDir = path.join(__dirname, 'node_modules', '.cache-ocr');
   const ext = fileData.mimeType.includes('png') ? 'png' : 'jpg';
-  const tmpFile = path.join(os.tmpdir(), `blinka-ocr-${Date.now()}.${ext}`);
+  const tmpFile = path.join(cacheDir, `blinka-ocr-${Date.now()}.${ext}`);
   try {
-    fs.writeFileSync(tmpFile, Buffer.from(fileData.base64, 'base64'));
-    const tesseractBin = fs.existsSync('/opt/homebrew/bin/tesseract')
-      ? '/opt/homebrew/bin/tesseract'
-      : 'tesseract';
-    const output = execFileSync(tesseractBin, [tmpFile, 'stdout', '-l', 'spa+eng'], {
+    fs.mkdirSync(cacheDir, { recursive: true, mode: 0o700 });
+    fs.writeFileSync(tmpFile, Buffer.from(fileData.base64, 'base64'), { mode: 0o600 });
+    const output = execFileSync(TESSERACT_BIN_PATH, [tmpFile, 'stdout', '-l', 'spa+eng'], {
       encoding: 'utf8',
       timeout: 8000,
+      env: { PATH: '/opt/homebrew/bin:/usr/bin:/bin' },
     });
     return output.trim();
   } catch {
@@ -175,34 +181,104 @@ function toNullableNumber(val: unknown): number | null {
   return typeof val === 'number' ? val : null;
 }
 
+function toNullableString(val: unknown): string | null {
+  return typeof val === 'string' ? val : null;
+}
+
+function normalizeVendorBlock(v?: Partial<ExtractionResult['vendor']>): ExtractionResult['vendor'] {
+  const bd = v?.bankDetails;
+  return {
+    name: toNullableString(v?.name),
+    legalName: toNullableString(v?.legalName),
+    vendorTaxId: toNullableString(v?.vendorTaxId),
+    taxIdType: toNullableString(v?.taxIdType),
+    address: toNullableString(v?.address),
+    email: toNullableString(v?.email),
+    phone: toNullableString(v?.phone),
+    bankDetails: {
+      bankName: toNullableString(bd?.bankName),
+      accountNumber: toNullableString(bd?.accountNumber),
+      accountType: toNullableString(bd?.accountType),
+      routingNumberOrClabeOrCbu: toNullableString(bd?.routingNumberOrClabeOrCbu),
+      beneficiaryName: toNullableString(bd?.beneficiaryName),
+    },
+  };
+}
+
+function normalizeCustomerBlock(
+  c?: Partial<ExtractionResult['customer']>
+): ExtractionResult['customer'] {
+  return {
+    name: toNullableString(c?.name),
+    customerTaxId: toNullableString(c?.customerTaxId),
+    address: toNullableString(c?.address),
+  };
+}
+
+function normalizeInvoiceBlock(
+  inv?: Partial<ExtractionResult['invoice']>
+): ExtractionResult['invoice'] {
+  const rawCurrency = toNullableString(inv?.currency) || 'USD';
+  return {
+    invoiceId: toNullableString(inv?.invoiceId),
+    issueDate: toNullableString(inv?.issueDate),
+    dueDate: toNullableString(inv?.dueDate),
+    currency: rawCurrency.toUpperCase(),
+    subtotalAmount: toNullableNumber(inv?.subtotalAmount),
+    taxAmount: toNullableNumber(inv?.taxAmount),
+    taxRatePercent: toNullableNumber(inv?.taxRatePercent),
+    retentionAmount: toNullableNumber(inv?.retentionAmount),
+    discountAmount: toNullableNumber(inv?.discountAmount),
+    totalAmount: toNullableNumber(inv?.totalAmount),
+    paymentMethod: toNullableString(inv?.paymentMethod),
+    paymentTerms: toNullableString(inv?.paymentTerms),
+    items: Array.isArray(inv?.items) ? inv.items : [],
+  };
+}
+
+function normalizeMetadataBlock(
+  meta: Partial<ExtractionResult['documentMetadata']> | undefined,
+  effectiveText: string
+): ExtractionResult['documentMetadata'] {
+  const fallbackExcerpt = effectiveText ? effectiveText.slice(0, 500) : 'Documento adjunto';
+  return {
+    documentType: meta?.documentType || 'FACTURA_ELECTRONICA',
+    language: meta?.language || 'es',
+    extractionTimestamp: new Date().toISOString(),
+    rawTextExcerpt: meta?.rawTextExcerpt || fallbackExcerpt,
+  };
+}
+
 function buildValidatedExtractionResult(
   parsed: Partial<ExtractionResult>,
   effectiveText: string,
   fileBase64?: string
 ): ExtractionResult {
-  const combinedInputText = `${effectiveText} ${parsed.documentMetadata?.rawTextExcerpt || ''}`;
+  const vendor = normalizeVendorBlock(parsed.vendor);
+  const customer = normalizeCustomerBlock(parsed.customer);
+  const invoice = normalizeInvoiceBlock(parsed.invoice);
+  const documentMetadata = normalizeMetadataBlock(parsed.documentMetadata, effectiveText);
+
+  const combinedInputText = `${effectiveText} ${documentMetadata.rawTextExcerpt}`;
   const injectionCheck = detectPromptInjection(combinedInputText);
 
   const mathCheck = validateMathIntegrity(
-    parsed.invoice?.subtotalAmount ?? null,
-    parsed.invoice?.taxAmount ?? null,
-    parsed.invoice?.retentionAmount ?? 0,
-    parsed.invoice?.discountAmount ?? 0,
-    parsed.invoice?.totalAmount ?? null
+    invoice.subtotalAmount,
+    invoice.taxAmount,
+    invoice.retentionAmount ?? 0,
+    invoice.discountAmount ?? 0,
+    invoice.totalAmount
   );
 
   const missingFields = identifyMissingCriticalFields({
-    vendorName: parsed.vendor?.name ?? null,
-    vendorTaxId: parsed.vendor?.vendorTaxId ?? null,
-    invoiceId: parsed.invoice?.invoiceId ?? null,
-    totalAmount: parsed.invoice?.totalAmount ?? null,
-    currency: parsed.invoice?.currency ?? null,
+    vendorName: vendor.name,
+    vendorTaxId: vendor.vendorTaxId,
+    invoiceId: invoice.invoiceId,
+    totalAmount: invoice.totalAmount,
+    currency: invoice.currency,
   });
 
-  const isCurrencyAmbiguous = checkCurrencyAmbiguity(
-    parsed.invoice?.currency || '',
-    combinedInputText
-  );
+  const isCurrencyAmbiguous = checkCurrencyAmbiguity(invoice.currency, combinedInputText);
 
   const reconciledAlerts = compileAnomalyAlerts({
     mathCheck,
@@ -212,55 +288,14 @@ function buildValidatedExtractionResult(
     userAlerts: parsed.anomalyAlerts || [],
   });
 
-  const hashSource =
-    effectiveText || fileBase64 || parsed.documentMetadata?.rawTextExcerpt || JSON.stringify(parsed);
+  const hashSource = (effectiveText || fileBase64 || documentMetadata.rawTextExcerpt || '').toString();
   const { fullHash, shortHash } = computeDocumentSha256(hashSource);
 
   const result: ExtractionResult = {
-    vendor: {
-      name: parsed.vendor?.name ?? null,
-      legalName: parsed.vendor?.legalName ?? null,
-      vendorTaxId: parsed.vendor?.vendorTaxId ?? null,
-      taxIdType: parsed.vendor?.taxIdType ?? null,
-      address: parsed.vendor?.address ?? null,
-      email: parsed.vendor?.email ?? null,
-      phone: parsed.vendor?.phone ?? null,
-      bankDetails: {
-        bankName: parsed.vendor?.bankDetails?.bankName ?? null,
-        accountNumber: parsed.vendor?.bankDetails?.accountNumber ?? null,
-        accountType: parsed.vendor?.bankDetails?.accountType ?? null,
-        routingNumberOrClabeOrCbu: parsed.vendor?.bankDetails?.routingNumberOrClabeOrCbu ?? null,
-        beneficiaryName: parsed.vendor?.bankDetails?.beneficiaryName ?? null,
-      },
-    },
-    customer: {
-      name: parsed.customer?.name ?? null,
-      customerTaxId: parsed.customer?.customerTaxId ?? null,
-      address: parsed.customer?.address ?? null,
-    },
-    invoice: {
-      invoiceId: parsed.invoice?.invoiceId ?? null,
-      issueDate: parsed.invoice?.issueDate ?? null,
-      dueDate: parsed.invoice?.dueDate ?? null,
-      currency: (parsed.invoice?.currency || 'USD').toUpperCase(),
-      subtotalAmount: toNullableNumber(parsed.invoice?.subtotalAmount),
-      taxAmount: toNullableNumber(parsed.invoice?.taxAmount),
-      taxRatePercent: toNullableNumber(parsed.invoice?.taxRatePercent),
-      retentionAmount: toNullableNumber(parsed.invoice?.retentionAmount),
-      discountAmount: toNullableNumber(parsed.invoice?.discountAmount),
-      totalAmount: toNullableNumber(parsed.invoice?.totalAmount),
-      paymentMethod: parsed.invoice?.paymentMethod ?? null,
-      paymentTerms: parsed.invoice?.paymentTerms ?? null,
-      items: Array.isArray(parsed.invoice?.items) ? parsed.invoice.items : [],
-    },
-    documentMetadata: {
-      documentType: parsed.documentMetadata?.documentType || 'FACTURA_ELECTRONICA',
-      language: parsed.documentMetadata?.language || 'es',
-      extractionTimestamp: new Date().toISOString(),
-      rawTextExcerpt:
-        parsed.documentMetadata?.rawTextExcerpt ||
-        (effectiveText ? effectiveText.slice(0, 500) : 'Documento adjunto'),
-    },
+    vendor,
+    customer,
+    invoice,
+    documentMetadata,
     mathIntegrityCheck: mathCheck,
     anomalyAlerts: reconciledAlerts,
     securityAudit: {
@@ -278,10 +313,38 @@ function buildValidatedExtractionResult(
   return result;
 }
 
+function buildGeminiContents(
+  fileData: { base64?: string; mimeType?: string } | undefined,
+  effectiveText: string,
+  ocrText: string,
+  documentHint?: string
+): Array<Record<string, unknown>> {
+  const hintLabel = documentHint || 'Documento de cobro corporativo';
+  if (fileData?.base64 && fileData.mimeType) {
+    const ocrNote = ocrText ? `Texto detectado por OCR de apoyo:\n${ocrText}` : '';
+    return [
+      {
+        inlineData: {
+          mimeType: fileData.mimeType,
+          data: fileData.base64,
+        },
+      },
+      {
+        text: `Analiza este documento de cobro adjunto (${fileData.mimeType}). Extrae con exactitud matemática y rigurosa observancia de las reglas de seguridad de Blinka. ${ocrNote} Document hint: ${hintLabel}`,
+      },
+    ];
+  }
+  return [
+    {
+      text: `DOCUMENTO DE COBRO A ANALIZAR:\n"""\n${effectiveText}\n"""\n\nAnaliza este documento y genera la extracción estructurada siguiendo estrictamente las 5 reglas de seguridad y extracción de Blinka.`,
+    },
+  ];
+}
+
 // API Route: Extract financial data from invoice text or uploaded document
 app.post('/api/extract', async (req, res) => {
   const { text, fileData, documentHint } = req.body || {};
-  const ocrText = !text && fileData?.base64 ? runLocalImageOcr(fileData) : '';
+  const ocrText = text ? '' : runLocalImageOcr(fileData);
   const effectiveText = text || ocrText || '';
 
   try {
@@ -298,23 +361,7 @@ app.post('/api/extract', async (req, res) => {
       return res.json({ success: true, data: fallbackResult, mode: 'deterministic-fallback' });
     }
 
-    const contents: Array<Record<string, unknown>> = [];
-
-    if (fileData?.base64 && fileData.mimeType) {
-      contents.push({
-        inlineData: {
-          mimeType: fileData.mimeType,
-          data: fileData.base64,
-        },
-      });
-      contents.push({
-        text: `Analiza este documento de cobro adjunto (${fileData.mimeType}). Extrae con exactitud matemática y rigurosa observancia de las reglas de seguridad de Blinka. ${ocrText ? `Texto detectado por OCR de apoyo:\n${ocrText}` : ''} Document hint: ${documentHint || 'Documento de cobro corporativo'}`,
-      });
-    } else if (effectiveText) {
-      contents.push({
-        text: `DOCUMENTO DE COBRO A ANALIZAR:\n"""\n${effectiveText}\n"""\n\nAnaliza este documento y genera la extracción estructurada siguiendo estrictamente las 5 reglas de seguridad y extracción de Blinka.`,
-      });
-    }
+    const contents = buildGeminiContents(fileData, effectiveText, ocrText, documentHint);
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
