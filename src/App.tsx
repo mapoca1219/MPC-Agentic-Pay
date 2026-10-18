@@ -183,12 +183,32 @@ export default function App() {
           body: JSON.stringify(payload),
         });
 
-        const resData = await response.json();
-
-        if (!response.ok || !resData.success) {
-          throw new Error(resData.error || resData.details || 'Error al procesar el documento.');
+        const responseText = await response.text();
+        let resData: {
+          success?: boolean;
+          data?: ExtractionResult;
+          error?: string;
+          details?: string;
+        };
+        try {
+          resData = JSON.parse(responseText) as typeof resData;
+        } catch {
+          const message =
+            response.status === 404
+              ? 'La API de análisis no está desplegada en este sitio. Verifica que Vercel haya publicado la función /api/extract.'
+              : `El servidor devolvió una respuesta no válida (HTTP ${response.status}).`;
+          throw new Error(message);
         }
 
+        if (!response.ok || !resData.success) {
+          throw new Error(
+            resData.error || resData.details || `Error al procesar el documento (HTTP ${response.status}).`
+          );
+        }
+
+        if (!resData.data) {
+          throw new Error('El servidor no devolvió los datos extraídos del documento.');
+        }
         extracted = resData.data;
       } catch (error) {
         if (payload.fileData) {

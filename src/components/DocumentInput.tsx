@@ -249,7 +249,7 @@ export const DocumentInput: React.FC<DocumentInputProps> = ({
             <input
               ref={fileInputRef}
               type="file"
-              accept=".pdf,image/png,image/jpeg,image/webp"
+              accept=".pdf,image/png,image/jpeg,image/webp,image/heic,image/heif"
               onChange={handleFileUpload}
               className="hidden"
               id="file-upload-input"

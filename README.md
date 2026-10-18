@@ -108,6 +108,12 @@ npm run dev
 
 Abre [http://localhost:3000](http://localhost:3000). El endpoint de salud está disponible en `/api/health`.
 
+## Despliegue en Vercel
+
+La función de extracción para Vercel está en `api/extract.ts` y se publica en `/api/extract`. En la configuración del proyecto de Vercel agrega `GEMINI_API_KEY` en **Settings → Environment Variables** para los entornos que uses y vuelve a desplegar. La clave debe permanecer en el servidor; nunca la pongas en variables `VITE_*` ni en el código del navegador.
+
+El análisis de archivos PDF e imágenes usa Gemini. Sin esa variable configurada, el endpoint devuelve un error accionable y no sustituye el documento por un escenario de muestra. El análisis de texto pegado conserva el modo determinista local.
+
 ## Validación
 
 ```bash
