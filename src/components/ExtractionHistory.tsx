@@ -9,7 +9,6 @@ import {
   FileJson,
   Fingerprint,
   RotateCcw,
-  Table,
   AlertTriangle,
   Ban,
   Clock,
@@ -19,9 +18,13 @@ import {
   UserCheck,
   ChevronDown,
   ChevronUp,
-  Copy,
-  Download,
   ArrowRightLeft,
+  Scale,
+  Building2,
+  ExternalLink,
+  Layers,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
 import {
   evaluateGovernanceDecision,
@@ -79,27 +82,42 @@ interface AccountingRow {
   Integridad: string;
 }
 
-function getDecisionBadgeStyle(code: string): string {
+function getDecisionBadgeStyle(code: string) {
   switch (code) {
     case 'PAID':
-      return 'bg-cyan-500/10 text-[#00F5D4] border-cyan-500/30';
+      return {
+        badge: 'bg-cyan-500/15 text-[#00F5D4] border-cyan-400/40 shadow-[0_0_12px_rgba(0,245,212,0.15)]',
+        cardBorder: 'hover:border-cyan-400/50',
+        dot: 'bg-[#00F5D4]',
+        label: 'PAID • Autorizado',
+      };
     case 'REJECTED':
-      return 'bg-rose-500/10 text-rose-400 border-rose-500/30';
+      return {
+        badge: 'bg-rose-500/15 text-rose-300 border-rose-500/40 shadow-[0_0_12px_rgba(244,63,94,0.15)]',
+        cardBorder: 'hover:border-rose-500/50',
+        dot: 'bg-rose-500',
+        label: 'REJECTED • Frenado',
+      };
     default:
-      return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+      return {
+        badge: 'bg-amber-500/15 text-amber-300 border-amber-400/40 shadow-[0_0_12px_rgba(251,191,36,0.15)]',
+        cardBorder: 'hover:border-amber-400/50',
+        dot: 'bg-amber-400',
+        label: 'ESCALATED • Requiere CFO',
+      };
   }
 }
 
 function getUrgencyBadgeStyle(level: string): string {
-  if (level === 'VENCIDO') return 'bg-rose-500/10 text-rose-400 border-rose-500/30';
-  if (level === 'URGENTE_48H') return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
-  return 'bg-[#0D1322] text-slate-400 border-slate-700/50';
+  if (level === 'VENCIDO') return 'bg-rose-500/20 text-rose-300 border-rose-500/40';
+  if (level === 'URGENTE_48H') return 'bg-amber-500/20 text-amber-300 border-amber-400/40 animate-pulse';
+  return 'bg-[#0D1322] text-slate-300 border-slate-700/60';
 }
 
 function formatDestinationAccount(item: HistoryItem): string {
   const bankName = item.result.vendor.bankDetails?.bankName || 'N/A';
   const accountNum = item.result.vendor.bankDetails?.accountNumber || 'S/N';
-  return `${bankName} • ${accountNum}`;
+  return `${bankName} (${accountNum})`;
 }
 
 function mapItemToAccountingRow(
@@ -151,7 +169,7 @@ export const ExtractionHistory: React.FC<ExtractionHistoryProps> = ({
   onCfoDecisionForItem,
   activeId,
 }) => {
-  const [showTablePreview, setShowTablePreview] = useState<boolean>(true);
+  const [viewMode, setViewMode] = useState<'cards' | 'grid'>('cards');
   const [expandedPayloadId, setExpandedPayloadId] = useState<string | null>(null);
 
   const accountingRows = history.map((item, idx) => mapItemToAccountingRow(item, idx, policy));
@@ -254,67 +272,86 @@ export const ExtractionHistory: React.FC<ExtractionHistoryProps> = ({
     .reduce((acc, cur) => acc + cur.amountUsd, 0);
 
   return (
-    <div className="bg-[#111827]/60 backdrop-blur-md rounded-3xl border border-slate-800/60 p-6 sm:p-8 shadow-2xl space-y-6">
-      {/* Header con métricas resumen */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/50 pb-6">
+    <div className="bg-[#111827]/70 backdrop-blur-md rounded-3xl border border-slate-800/80 p-5 sm:p-7 shadow-2xl space-y-6">
+      {/* Header con métricas y barra de herramientas */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-800/70 pb-5">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-purple-600 to-cyan-500 flex items-center justify-center text-white shadow-lg shadow-cyan-500/20">
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-purple-600 via-indigo-600 to-cyan-500 flex items-center justify-center text-white shadow-lg shadow-cyan-500/20 shrink-0">
             <History className="h-5 w-5" />
           </div>
           <div>
-            <h4 className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-100">
-              Conciliación Mensual — Lista para Contabilidad
-            </h4>
-            <p className="text-[11px] text-slate-400 mt-1">
-              {history.length} casos auditados • {paidCount} pagos autorizados • ${totalPaidUsd.toLocaleString('en-US', {
-                minimumFractionDigits: 2,
-              })} USD liquidados
+            <div className="flex items-center gap-2 flex-wrap">
+              <h4 className="text-sm sm:text-base font-extrabold uppercase tracking-wider text-slate-100">
+                Conciliación Mensual Lista para Contabilidad
+              </h4>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/10 text-[#00F5D4] border border-cyan-400/30">
+                {history.length} Documentos
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Visualización por Cards Contables enriquecidas • Cada campo organizado con detalle
+              financiero, riel y decisión.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center flex-wrap gap-3 w-full sm:w-auto justify-end">
+        <div className="flex items-center flex-wrap gap-2.5 w-full lg:w-auto justify-end">
+          {/* Switcher de Vista: Cards / Grid */}
+          <div className="flex items-center gap-1 bg-[#0D1322] p-1 rounded-xl border border-slate-800">
+            <button
+              type="button"
+              onClick={() => setViewMode('cards')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                viewMode === 'cards'
+                  ? 'bg-gradient-to-r from-purple-600 to-cyan-500 text-white shadow-md shadow-cyan-500/20'
+                  : 'text-slate-400 hover:text-slate-100'
+              }`}
+            >
+              <List className="h-3.5 w-3.5" />
+              <span>Cards en Lista</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('grid')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                viewMode === 'grid'
+                  ? 'bg-gradient-to-r from-purple-600 to-cyan-500 text-white shadow-md shadow-cyan-500/20'
+                  : 'text-slate-400 hover:text-slate-100'
+              }`}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              <span>Cards en Grid</span>
+            </button>
+          </div>
+
           <button
             type="button"
             onClick={handleExportCSV}
             disabled={history.length === 0}
-            className="px-4 py-2.5 rounded-xl text-xs font-semibold bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 text-white shadow-lg shadow-cyan-500/20 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer transition-all"
+            className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-purple-600 to-cyan-500 text-white shadow-md shadow-cyan-500/20 disabled:opacity-40 flex items-center gap-1.5 cursor-pointer hover:brightness-110 transition-all"
           >
-            <FileSpreadsheet className="h-4 w-4" />
-            <span>Exportar CSV</span>
+            <FileSpreadsheet className="h-3.5 w-3.5" />
+            <span>CSV</span>
           </button>
 
           <button
             type="button"
             onClick={handleExportJSON}
             disabled={history.length === 0}
-            className="px-4 py-2.5 rounded-xl text-xs font-bold bg-[#0D1322] hover:bg-[#161F33] text-slate-100 border border-slate-700/60 shadow-sm disabled:opacity-40 flex items-center gap-2 cursor-pointer transition-all"
+            className="px-3.5 py-2 rounded-xl text-xs font-bold bg-[#0D1322] hover:bg-[#161F33] text-slate-200 border border-slate-700/80 shadow-sm disabled:opacity-40 flex items-center gap-1.5 cursor-pointer transition-all"
           >
-            <FileJson className="h-4 w-4 text-purple-400" />
-            <span>Exportar JSON</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setShowTablePreview(!showTablePreview)}
-            className={`px-3 py-2.5 rounded-xl text-xs font-semibold border flex items-center gap-2 cursor-pointer transition-all ${
-              showTablePreview
-                ? 'bg-purple-500/10 border-purple-500/30 text-purple-300'
-                : 'bg-[#0D1322] border-slate-700/60 text-slate-300 hover:text-white hover:border-purple-500/50'
-            }`}
-          >
-            <Table className="h-4 w-4" />
-            <span>{showTablePreview ? 'Ocultar Tabla' : 'Ver Tabla'}</span>
+            <FileJson className="h-3.5 w-3.5 text-purple-400" />
+            <span>JSON</span>
           </button>
 
           {history.length < 9 && (
             <button
               type="button"
               onClick={onLoadAllSamples}
-              className="px-3 py-2.5 rounded-xl text-xs font-semibold border border-cyan-400/30 bg-cyan-500/5 text-[#00F5D4] hover:bg-cyan-500/10 flex items-center gap-2 cursor-pointer transition-colors"
+              className="px-3 py-2 rounded-xl text-xs font-semibold border border-cyan-400/40 bg-cyan-500/10 text-[#00F5D4] hover:bg-cyan-500/20 flex items-center gap-1.5 cursor-pointer transition-colors"
             >
-              <RotateCcw className="h-4 w-4" />
-              <span>Cargar Todos los Casos</span>
+              <RotateCcw className="h-3.5 w-3.5" />
+              <span>Recargar 9 Casos</span>
             </button>
           )}
 
@@ -322,7 +359,7 @@ export const ExtractionHistory: React.FC<ExtractionHistoryProps> = ({
             <button
               type="button"
               onClick={onClear}
-              className="px-2.5 py-2.5 rounded-xl text-[11px] text-slate-400 hover:text-rose-400 hover:bg-rose-500/5 flex items-center gap-2 cursor-pointer transition-colors"
+              className="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer border border-transparent hover:border-rose-500/30"
               title="Limpiar bandeja"
               aria-label="Limpiar bandeja"
             >
@@ -332,104 +369,24 @@ export const ExtractionHistory: React.FC<ExtractionHistoryProps> = ({
         </div>
       </div>
 
-      {showTablePreview && history.length > 0 && (
-        <div className="rounded-2xl border border-slate-800/60 overflow-hidden bg-[#0D1322]/80 shadow-xl">
-          <div className="bg-[#0B0F19]/80 px-5 py-3 flex items-center justify-between text-[11px] border-b border-slate-800/60">
-            <span className="flex items-center gap-2 font-bold uppercase tracking-wider text-[#00F5D4]">
-              <CreditCard className="h-3.5 w-3.5" />
-              Registro Contable de Pagos
-            </span>
-            <span className="font-mono text-slate-500">
-              Fecha • Factura • Beneficiario • Monto USD • Riel • Decisión • Explicación
-            </span>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-[#0B0F19]/60 text-slate-400 text-[10px] uppercase border-b border-slate-800/60 sticky top-0 z-10">
-                <tr>
-                  <th className="py-3 px-4 font-bold tracking-wider">Fecha</th>
-                  <th className="py-3 px-4 font-bold tracking-wider">Factura</th>
-                  <th className="py-3 px-4 font-bold tracking-wider">Beneficiario</th>
-                  <th className="py-3 px-4 font-bold tracking-wider text-right">Monto Original</th>
-                  <th className="py-3 px-4 font-bold tracking-wider text-right">Monto USD</th>
-                  <th className="py-3 px-4 font-bold tracking-wider">Riel Blinka</th>
-                  <th className="py-3 px-4 font-bold tracking-wider">Decisión</th>
-                  <th className="py-3 px-4 font-bold tracking-wider">Explicación</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/50 bg-[#0D1322]/50">
-                {accountingRows.map((row, idx) => (
-                  <tr
-                    key={`row-${idx}`}
-                    className="hover:bg-[#131B2E]/40 transition-colors group"
-                  >
-                    <td className="py-4 px-4 font-mono text-slate-500 whitespace-nowrap">
-                      {row.Fecha}
-                    </td>
-                    <td className="py-4 px-4 font-mono font-bold text-slate-200 whitespace-nowrap group-hover:text-[#00F5D4]">
-                      {row.ID}
-                    </td>
-                    <td className="py-4 px-4 font-semibold text-slate-200 truncate max-w-xs">
-                      {row.Proveedor}
-                    </td>
-                    <td className="py-4 px-4 font-mono text-right text-slate-400 whitespace-nowrap">
-                      {row.MontoOriginal}
-                    </td>
-                    <td className="py-4 px-4 font-mono font-bold text-right text-[#00F5D4] whitespace-nowrap">
-                      {row.MontoUSD}
-                    </td>
-                    <td className="py-4 px-4 font-mono text-[11px] text-purple-300 whitespace-nowrap">
-                      {row.RielBlinka}
-                    </td>
-                    <td className="py-4 px-4 whitespace-nowrap">
-                      <span
-                        className={`text-[10px] font-bold px-2.5 py-1 rounded border inline-flex items-center gap-1.5 ${getDecisionBadgeStyle(
-                          row.DecisionCode
-                        )}`}
-                      >
-                        {row.DecisionCode === 'PAID' ? (
-                          <CheckCircle2 className="h-3 w-3" />
-                        ) : row.DecisionCode === 'REJECTED' ? (
-                          <Ban className="h-3 w-3" />
-                        ) : (
-                          <AlertTriangle className="h-3 w-3" />
-                        )}
-                        {row.Decision}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 text-slate-300 max-w-sm leading-relaxed">
-                      {row.Explicacion}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {history.length === 0 && (
-            <div className="text-center py-12 text-xs text-slate-500">
-              No hay documentos en la bandeja.
-              <button
-                type="button"
-                onClick={onLoadAllSamples}
-                className="text-[#00F5D4] font-bold underline cursor-pointer mt-2"
-              >
-                Cargar todos los escenarios del Reto Blinka
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {!showTablePreview && history.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {history.map((item) => {
+      {/* Lista de Documentos en Cards Ultra Profesionales */}
+      {history.length > 0 ? (
+        <div
+          className={
+            viewMode === 'grid'
+              ? 'grid grid-cols-1 lg:grid-cols-2 gap-4'
+              : 'space-y-4'
+          }
+        >
+          {history.map((item, idx) => {
             const decision = evaluateGovernanceDecision(item.result, policy);
             const isAttack = item.result.securityAudit.promptInjectionDetected;
             const origAmount = item.result.invoice.totalAmount ?? 0;
             const origCurrency = item.result.invoice.currency || 'USD';
             const vendorTitle = item.result.vendor.name || item.title;
-            const invoiceNumber = item.result.invoice.invoiceId || 'S/N';
-            const dueDateLabel = item.result.invoice.dueDate || 'N/A';
+            const invoiceNumber = item.result.invoice.invoiceId || `DOC-${String(idx + 1).padStart(3, '0')}`;
+            const issueDate = item.result.invoice.issueDate || item.timestamp.slice(0, 10);
+            const dueDateLabel = item.result.invoice.dueDate || 'Sin fecha';
             const isActive = item.id === activeId;
             const isPayloadOpen = expandedPayloadId === item.id;
             const paymentPayload = buildBlinkaPaymentIntentPayload(item.result, decision);
@@ -437,167 +394,276 @@ export const ExtractionHistory: React.FC<ExtractionHistoryProps> = ({
               item.result.documentMetadata.rawTextExcerpt || item.title
             );
             const shortHash = item.result.securityAudit.shortHash || fallbackHash.shortHash;
+            const fullHash = item.result.securityAudit.documentHashSha256 || fallbackHash.fullHash;
             const accountNumber = item.result.vendor.bankDetails?.accountNumber || 'S/N';
+            const bankName = item.result.vendor.bankDetails?.bankName || 'Banco no especificado';
             const countryRegion = item.result.vendor.countryRegion || 'Global';
-
-            const decisionStyles =
-              decision.decisionCode === 'PAID'
-                ? { border: 'border-cyan-500/30', badge: 'bg-cyan-500/10 text-[#00F5D4]', icon: <CheckCircle2 className="h-4 w-4 text-[#00F5D4]" /> }
-                : decision.decisionCode === 'REJECTED'
-                ? { border: 'border-rose-500/30', badge: 'bg-rose-500/10 text-rose-400', icon: <Ban className="h-4 w-4 text-rose-400" /> }
-                : { border: 'border-amber-500/30', badge: 'bg-amber-500/10 text-amber-400', icon: <AlertTriangle className="h-4 w-4 text-amber-400" /> };
+            const badgeStyle = getDecisionBadgeStyle(decision.decisionCode);
 
             return (
               <div
                 key={item.id}
-                onClick={() => onSelect(item)}
-                className={`p-5 rounded-2xl border text-left transition-all cursor-pointer group ${isActive
-                  ? 'bg-[#1C2841]/60 border-cyan-400/50 ring-1 ring-cyan-400/40 shadow-lg shadow-cyan-500/10'
-                  : 'bg-[#0D1322]/60 border-slate-800/50 hover:border-purple-500/30 hover:bg-[#131B2E]/80'}`}
+                className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
+                  isActive
+                    ? 'border-cyan-400/80 bg-[#121B2F] ring-2 ring-cyan-400/30 shadow-xl shadow-cyan-500/10'
+                    : 'border-slate-800/80 bg-[#0D1322]/90 hover:border-slate-700 hover:bg-[#10182B]'
+                }`}
               >
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${decisionStyles.badge}`}>
-                        {decision.decisionCode} • {decision.actionLabel}
+                {/* Header de la Card: Identificación, Decisión y Montos */}
+                <div className="p-4 sm:p-5 border-b border-slate-800/80 bg-[#12192A]/80 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-[#1A2338] border border-slate-700/80 flex items-center justify-center text-[#00F5D4] shrink-0 font-black text-xs">
+                      {idx + 1}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className="font-mono text-xs font-bold text-slate-100 bg-[#0B0F19] px-2.5 py-0.5 rounded-lg border border-slate-700/80 text-[#00F5D4]">
+                          #{invoiceNumber}
+                        </span>
+                        <span className="text-[11px] text-slate-400 font-mono">
+                          Emitida: {issueDate}
+                        </span>
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getUrgencyBadgeStyle(
+                            decision.urgency.level
+                          )}`}
+                        >
+                          <Clock className="h-3 w-3 inline mr-1" />
+                          Vence: {dueDateLabel}
+                        </span>
+                      </div>
+                      <h5 className="font-extrabold text-sm sm:text-base text-white truncate flex items-center gap-1.5">
+                        <Building2 className="h-4 w-4 text-purple-400 shrink-0" />
+                        <span className="truncate">{vendorTitle}</span>
+                        <span className="text-xs font-normal text-slate-400">
+                          ({countryRegion})
+                        </span>
+                      </h5>
+                    </div>
+                  </div>
+
+                  {/* Bloque de Montos y Badge de Decisión */}
+                  <div className="flex items-center justify-between md:justify-end gap-3 self-stretch md:self-auto pt-2 md:pt-0 border-t md:border-t-0 border-slate-800">
+                    <div className="text-left md:text-right">
+                      <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                        Monto Original
+                      </div>
+                      <div className="font-mono text-xs text-slate-300 font-semibold">
+                        ${origAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} {origCurrency}
+                      </div>
+                      <div className="font-mono font-black text-sm sm:text-base text-[#00F5D4]">
+                        ≈ ${decision.amountUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <span
+                        className={`text-[11px] font-black uppercase tracking-wider px-3 py-1.5 rounded-xl border flex items-center gap-1.5 ${badgeStyle.badge}`}
+                      >
+                        <span className={`w-2 h-2 rounded-full ${badgeStyle.dot} animate-pulse`} />
+                        {badgeStyle.label}
                       </span>
                       {decision.humanApproval && (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-500/20 text-purple-200 border border-purple-400/40 flex items-center gap-1">
+                        <span className="text-[10px] font-bold text-purple-300 bg-purple-500/20 border border-purple-400/40 px-2 py-0.5 rounded-md flex items-center gap-1">
                           <UserCheck className="h-3 w-3" />
-                          CFO
+                          {decision.humanApproval.reviewerName}
                         </span>
                       )}
                     </div>
-                    <h5 className="font-bold text-slate-100 text-sm mb-0.5 group-hover:text-[#00F5D4] transition-colors">
-                      {vendorTitle}
-                    </h5>
-                    <p className="text-[10px] text-slate-500 font-mono">
-                      Factura #{invoiceNumber} • {countryRegion}
-                    </p>
                   </div>
-                  <div className="text-right">
-                    <div className="font-mono font-bold text-[#00F5D4] text-sm">
-                      {decision.amountUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD
+                </div>
+
+                {/* Cuerpo de la Card: Campos Organizados en Bloques Limpios */}
+                <div className="p-4 sm:p-5 space-y-3.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {/* Campo 1: Cuenta Bancaria */}
+                    <div className="bg-[#0B0F19]/90 p-3 rounded-xl border border-slate-800/80">
+                      <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-slate-400 mb-1">
+                        <CreditCard className="h-3.5 w-3.5 text-purple-400" />
+                        <span>Cuenta Destino</span>
+                      </div>
+                      <div className="font-mono text-xs text-white font-bold truncate">
+                        {accountNumber}
+                      </div>
+                      <div className="text-[11px] text-slate-400 truncate mt-0.5">
+                        {bankName}
+                      </div>
+                      <div className="mt-1">
+                        {decision.accountMatchesRegistered ? (
+                          <span className="text-[10px] font-semibold text-[#00F5D4] bg-cyan-950/40 px-1.5 py-0.5 rounded border border-cyan-400/30">
+                            ✓ Registrada Oficial
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-semibold text-amber-300 bg-amber-950/40 px-1.5 py-0.5 rounded border border-amber-400/30">
+                            ⚠ No coincide con historial
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <span className="text-[10px] text-slate-500 mt-0.5 block">
-                      {origAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} {origCurrency}
-                    </span>
+
+                    {/* Campo 2: Smart Rail Routing */}
+                    <div className="bg-[#0B0F19]/90 p-3 rounded-xl border border-slate-800/80">
+                      <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-slate-400 mb-1">
+                        <ArrowRightLeft className="h-3.5 w-3.5 text-[#00F5D4]" />
+                        <span>Riel de Pago Recomendado</span>
+                      </div>
+                      <div className="font-mono text-xs text-purple-200 font-bold leading-tight">
+                        {decision.recommendedRail}
+                      </div>
+                      <div className="text-[10px] text-slate-400 mt-1">
+                        {decision.decisionCode === 'PAID' ? (
+                          <span className="text-[#00F5D4] font-medium">
+                            ● Riel Activo para Liquidación
+                          </span>
+                        ) : (
+                          <span className="text-amber-400/90 font-medium">
+                            ⏸ Riel Pausado por Gobernanza
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Campo 3: Integridad Criptográfica */}
+                    <div className="bg-[#0B0F19]/90 p-3 rounded-xl border border-slate-800/80">
+                      <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-slate-400 mb-1">
+                        <Fingerprint className="h-3.5 w-3.5 text-cyan-400" />
+                        <span>Hash SHA-256</span>
+                      </div>
+                      <div className="font-mono text-xs text-slate-300 font-bold">
+                        {shortHash}
+                      </div>
+                      <div className="mt-1">
+                        {isAttack ? (
+                          <span className="text-[10px] font-bold text-rose-300 bg-rose-500/20 px-1.5 py-0.5 rounded border border-rose-500/40 inline-flex items-center gap-1">
+                            <ShieldAlert className="h-3 w-3" />
+                            Alerta Manipulación
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-[#00F5D4] bg-cyan-500/20 px-1.5 py-0.5 rounded border border-cyan-400/40 inline-flex items-center gap-1">
+                            <ShieldCheck className="h-3 w-3" />
+                            Integridad Verificada
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                  <div className="bg-[#0B0F19]/40 p-3 rounded-xl border border-slate-800/40">
-                    <span className="text-[10px] text-slate-500 block mb-1 uppercase tracking-wider">
-                      Vence
-                    </span>
-                    <span className="font-mono text-slate-200 text-xs">{dueDateLabel}</span>
+                  {/* Campo 4: Explicación Contable en Lenguaje Claro */}
+                  <div className="bg-[#0B0F19] rounded-xl p-3 sm:p-3.5 border border-slate-800 flex items-start gap-2.5">
+                    <Scale className="h-4 w-4 text-[#00F5D4] shrink-0 mt-0.5" />
+                    <div className="text-xs leading-relaxed text-slate-200 flex-1">
+                      <strong className="text-[#00F5D4] font-bold uppercase text-[10px] tracking-wider block mb-0.5">
+                        Explicación Finanzas ({decision.triggeredRule}):
+                      </strong>
+                      <p>{decision.explanation}</p>
+                    </div>
                   </div>
-                  <div className="bg-[#0B0F19]/40 p-3 rounded-xl border border-slate-800/40">
-                    <span className="text-[10px] text-slate-500 block mb-1 uppercase tracking-wider">
-                      Urgencia
-                    </span>
-                    <span
-                      className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded border ${getUrgencyBadgeStyle(
-                        decision.urgency.level
-                      )}`}
-                    >
-                      <Clock className="h-3 w-3" />
-                      {decision.urgency.label}
-                    </span>
-                  </div>
-                </div>
 
-                <div className="bg-[#0B0F19]/40 p-3 rounded-xl border border-slate-800/40 mb-3">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <ArrowRightLeft className="h-3.5 w-3.5 text-[#00F5D4]" />
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-purple-300">
-                      Smart Rail
-                    </span>
-                  </div>
-                  <div className="font-mono text-slate-200 text-xs">{decision.recommendedRail}</div>
-                </div>
-
-                <p className="text-[10px] text-slate-400 leading-relaxed mb-3">
-                  <span className="text-slate-600 font-bold mr-1">Explicación:</span>
-                  {decision.explanation}
-                </p>
-
-                <div className="flex items-center justify-between gap-2">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleTogglePayload(item.id);
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border bg-[#161F33] hover:bg-purple-600 text-slate-100 border-slate-700 cursor-pointer transition-colors group-hover:text-purple-300"
-                  >
-                    <Terminal className="h-3 w-3 text-[#00F5D4]" />
-                    {isPayloadOpen ? 'Ocultar Payload' : 'Ver Payload API'}
-                  </button>
-
-                  {decision.decisionCode === 'ESCALATED' && onCfoDecisionForItem && (
-                    <div className="flex gap-1.5">
+                  {/* Barra de Acciones y Payload API */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-1">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <button
                         type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onCfoDecisionForItem(item.id, 'APPROVE', 'Slack Finance Bot');
-                        }}
-                        className="px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-950 font-extrabold text-xs shadow-lg shadow-cyan-500/20 cursor-pointer transition-all"
+                        onClick={() => onSelect(item)}
+                        className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#162137] hover:bg-[#1E2D4A] text-slate-200 border border-slate-700/80 flex items-center gap-1.5 cursor-pointer transition-colors"
                       >
-                        <CheckCircle2 className="h-3 w-3" />
-                        Autorizar
+                        <ExternalLink className="h-3.5 w-3.5 text-[#00F5D4]" />
+                        <span>Inspeccionar en Simulador</span>
                       </button>
+
                       <button
                         type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onCfoDecisionForItem(item.id, 'REJECT', 'Slack Finance Bot');
-                        }}
-                        className="px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs cursor-pointer transition-colors"
+                        onClick={() => handleTogglePayload(item.id)}
+                        className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#0D1322] hover:bg-[#141E33] text-purple-300 border border-purple-500/30 flex items-center gap-1.5 cursor-pointer transition-colors"
                       >
-                        <Ban className="h-3 w-3" />
-                        Rechazar
+                        <Terminal className="h-3.5 w-3.5 text-[#00F5D4]" />
+                        <span>
+                          {isPayloadOpen ? 'Ocultar Payload' : 'BlinkaPaymentIntent JSON'}
+                        </span>
+                        {isPayloadOpen ? (
+                          <ChevronUp className="h-3.5 w-3.5" />
+                        ) : (
+                          <ChevronDown className="h-3.5 w-3.5" />
+                        )}
                       </button>
+                    </div>
+
+                    {/* Botones de Aprobación Humana CFO (si está ESCALATED) */}
+                    {decision.decisionCode === 'ESCALATED' && onCfoDecisionForItem && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => onCfoDecisionForItem(item.id, 'APPROVE', 'Slack Finance Bot')}
+                          className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-cyan-500/20 cursor-pointer transition-all"
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          <span>Autorizar Pago (CFO)</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onCfoDecisionForItem(item.id, 'REJECT', 'Slack Finance Bot')}
+                          className="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer transition-colors"
+                        >
+                          <Ban className="h-3.5 w-3.5" />
+                          <span>Rechazar</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {decision.humanApproval && onCfoDecisionForItem && (
+                      <button
+                        type="button"
+                        onClick={() => onCfoDecisionForItem(item.id, 'RESET', 'Slack Finance Bot')}
+                        className="text-[11px] font-semibold text-amber-300 hover:underline cursor-pointer flex items-center gap-1"
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                        Restaurar a ESCALATED
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Panel expandible de Payload API JSON */}
+                  {isPayloadOpen && (
+                    <div className="rounded-xl overflow-hidden border border-slate-800 bg-[#080C14] p-3.5 font-mono text-xs text-[#00F5D4] space-y-1.5 animate-in fade-in">
+                      <div className="flex items-center justify-between text-slate-400 pb-1.5 border-b border-slate-800 text-[11px]">
+                        <span>Idempotency Key: {paymentPayload.idempotencyKey}</span>
+                        <strong
+                          className={
+                            paymentPayload.paymentExecutionBlocked
+                              ? 'text-rose-400'
+                              : 'text-[#00F5D4]'
+                          }
+                        >
+                          blocked: {String(paymentPayload.paymentExecutionBlocked)}
+                        </strong>
+                      </div>
+                      <pre className="overflow-x-auto max-h-48 leading-relaxed text-[11px]">
+                        <code>{JSON.stringify(paymentPayload, null, 2)}</code>
+                      </pre>
                     </div>
                   )}
                 </div>
-
-                {isPayloadOpen && (
-                  <div className="mt-3 rounded-xl overflow-hidden border border-slate-800 bg-[#0B0F19] p-4 font-mono text-[10px] text-[#00F5D4] shadow-xl">
-                    <div className="flex items-center justify-between text-slate-400 pb-2 border-b border-slate-800 mb-2">
-                      <span>BlinkaPaymentIntent • {paymentPayload.idempotencyKey}</span>
-                      <span className={paymentPayload.paymentExecutionBlocked ? 'text-rose-400 font-bold' : 'text-[#00F5D4] font-bold'}>
-                        blocked: {String(paymentPayload.paymentExecutionBlocked)}
-                      </span>
-                    </div>
-                    <pre className="overflow-x-auto max-h-48 leading-relaxed">
-                      <code>{JSON.stringify(paymentPayload, null, 2)}</code>
-                    </pre>
-                  </div>
-                )}
               </div>
             );
           })}
         </div>
-      )}
-
-      {history.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="w-16 h-16 rounded-full bg-slate-800/50 flex items-center justify-center text-slate-500 mb-4">
-            <History className="h-8 w-8" />
+      ) : (
+        <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-slate-800 rounded-2xl p-6">
+          <div className="w-14 h-14 rounded-2xl bg-slate-800/50 flex items-center justify-center text-slate-500 mb-3">
+            <History className="h-7 w-7" />
           </div>
-          <h5 className="text-sm font-bold text-slate-200 mb-1">Bandeja Vacía</h5>
-          <p className="text-xs text-slate-500 mb-6 max-w-sm">
-            No hay documentos auditados aún. Usa el simulador para extraer facturas o carga los
-            escenarios del reto.
+          <h5 className="text-sm font-bold text-slate-200 mb-1">
+            Bandeja de Conciliación Vacía
+          </h5>
+          <p className="text-xs text-slate-400 mb-4 max-w-sm">
+            No hay documentos en el registro contable. Puedes cargar los 9 escenarios del reto para ver la conciliación completa.
           </p>
           <button
             type="button"
             onClick={onLoadAllSamples}
-            className="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/25 hover:from-purple-500 hover:to-cyan-400 transition-all"
+            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 text-white font-bold text-xs shadow-lg shadow-cyan-500/20 hover:brightness-110 transition-all cursor-pointer"
           >
-            Cargar Todos los Escenarios
+            Cargar Todos los 9 Escenarios
           </button>
         </div>
       )}
