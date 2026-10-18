@@ -285,6 +285,7 @@ export default async function extractHandler(req: Request, res: Response): Promi
     return;
   }
 
+  try {
   if (rateLimitExceeded(req)) {
     res.setHeader('Retry-After', String(RATE_LIMIT_WINDOW_MS / 1000));
     res.status(429).json({ error: 'Demasiadas solicitudes. Intenta de nuevo más tarde.' });
@@ -396,10 +397,16 @@ export default async function extractHandler(req: Request, res: Response): Promi
     const result = buildExtractionResult(parsed, '', base64);
     res.status(200).json({ success: true, data: result, mode: 'gemini' });
   } catch (error) {
-    console.error('File extraction failed');
+    console.error('File extraction failed:', error instanceof Error ? error.name : 'Unknown error');
     res.status(502).json({
       error:
         'No se pudo extraer la información del archivo. Verifica el formato y la clave GEMINI_API_KEY configurada en Vercel.',
     });
+  }
+  } catch (error) {
+    console.error('Unexpected extraction handler error:', error instanceof Error ? error.name : 'Unknown error');
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Error interno al preparar el análisis. Intenta de nuevo más tarde.' });
+    }
   }
 }

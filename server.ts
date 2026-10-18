@@ -37,7 +37,8 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 app.disable('x-powered-by');
-const port = 3000;
+const port = Number(process.env.PORT) || 3000;
+const host = process.env.K_SERVICE ? '0.0.0.0' : '127.0.0.1';
 
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true, limit: '16kb' }));
@@ -487,8 +488,8 @@ async function startServer() {
     });
   }
 
-  app.listen(port, '127.0.0.1', () => {
-    console.log(`Blinka Extractor Financiero running on http://localhost:${port}`);
+  app.listen(port, host, () => {
+    console.log(`Blinka Extractor Financiero running on ${host}:${port}`);
   });
 }
 

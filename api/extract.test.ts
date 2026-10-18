@@ -55,6 +55,19 @@ test('extract API requires a valid bearer token for files', async () => {
   assert.equal(response.status(), 401);
 });
 
+test('extract API returns a setup error when file access token is not configured', async () => {
+  delete process.env.EXTRACTION_API_TOKEN;
+  const response = createResponse();
+
+  await extractHandler(
+    createRequest({ fileData: { mimeType: 'application/pdf', base64: 'YQ==' } }),
+    response.response
+  );
+
+  assert.equal(response.status(), 503);
+  assert.match(response.body().error || '', /EXTRACTION_API_TOKEN/);
+});
+
 test('extract API rejects unsupported file types before calling Gemini', async () => {
   process.env.EXTRACTION_API_TOKEN = 'test-access-token-with-at-least-32-characters';
   const response = createResponse();
